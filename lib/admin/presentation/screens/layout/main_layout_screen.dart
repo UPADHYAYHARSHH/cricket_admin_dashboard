@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
 import '../../../../common/constants/app_colors.dart';
+import '../../../di/get_it/get_it.dart';
+import '../../blocs/dashboard/admin_dashboard_cubit.dart';
+import '../../blocs/dashboard/admin_dashboard_state.dart';
+import '../../blocs/locations/location_management_cubit.dart';
+import '../../blocs/owners/owner_management_cubit.dart';
+import '../../blocs/approvals/approvals_cubit.dart';
+import '../approvals/approvals_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../owner_management/owner_management_screen.dart';
-import '../ground_management/ground_management_screen.dart';
+import '../location_management/location_management_screen.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -14,87 +22,174 @@ class MainLayoutScreen extends StatefulWidget {
 
 class _MainLayoutScreenState extends State<MainLayoutScreen> {
   int _selectedIndex = 0;
-
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const OwnerManagementScreen(),
-    const GroundManagementScreen(),
-    const Center(child: Text('Users')), // Placeholder
-  ];
+  late final AdminDashboardCubit _statsCubit;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _statsCubit = getIt<AdminDashboardCubit>()..fetchStats();
+  }
+
+  @override
+  void dispose() {
+    _statsCubit.close();
+    super.dispose();
+  }
+
+  void _openApprovals() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider(
+          create: (_) => getIt<ApprovalsCubit>(),
+          child: const ApprovalsScreen(),
+        ),
+      ),
+    ).then((_) => _statsCubit.fetchStats());
+  }
+
+  List<Widget> get _screens => [
+        BlocProvider(create: (_) => getIt<AdminDashboardCubit>()..fetchStats(), child: const DashboardScreen()),
+        BlocProvider(create: (_) => getIt<OwnerManagementCubit>(), child: const OwnerManagementScreen()),
+        BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),
+        const Center(child: Text('Users')),
+      ];
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
-    final sidebar = Container(
-      width: 250,
-      color: Theme.of(context).colorScheme.surface,
-      child: Column(
-        children: [
-          const SizedBox(height: 32),
-          Text(
-            'Admin Panel',
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryDarkGreen,
-            ),
-          ),
-          const SizedBox(height: 32),
-          _buildNavItem(
-            icon: HugeIcons.strokeRoundedHome01,
-            label: 'Dashboard',
-            index: 0,
-          ),
-          _buildNavItem(
-            icon: HugeIcons.strokeRoundedUserGroup,
-            label: 'Owners',
-            index: 1,
-          ),
-          _buildNavItem(
-            icon: HugeIcons.strokeRoundedLocation01,
-            label: 'Grounds',
-            index: 2,
-          ),
-          _buildNavItem(
-            icon: HugeIcons.strokeRoundedUser,
-            label: 'Users',
-            index: 3,
-          ),
-        ],
+    return BlocProvider.value(
+      value: _statsCubit,
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: isDesktop ? null : Drawer(child: _Sidebar(
+          selectedIndex: _selectedIndex,
+          onSelect: (index) {
+            setState(() => _selectedIndex = index);
+            if (MediaQuery.of(context).size.width < 800 && _scaffoldKey.currentState?.isDrawerOpen == true) {
+              Navigator.of(context).pop();
+            }
+          },
+          onApprovalsTap: () {
+            Navigator.of(context).pop();
+            _openApprovals();
+          },
+        )),
+        body: Row(
+          children: [
+            if (isDesktop) ...[
+              _Sidebar(
+                selectedIndex: _selectedIndex,
+                onSelect: (index) => setState(() => _selectedIndex = index),
+                onApprovalsTap: _openApprovals,
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+            ],
+            Expanded(child: _screens[_selectedIndex]),
+          ],
+        ),
       ),
     );
+  }
+}
 
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: isDesktop ? null : Drawer(child: sidebar),
-      body: Row(
-        children: [
-          if (isDesktop) ...[
-            sidebar,
-            const VerticalDivider(width: 1, thickness: 1),
+class _Sidebar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onApprovalsTap;
+
+  const _Sidebar({
+    required this.selectedIndex,
+    required this.onSelect,
+    required this.onApprovalsTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 260,
+      color: Theme.of(context).colorScheme.surface,
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 28),
+            Text(
+              'Admin Panel',
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryDarkGreen,
+                  ),
+            ),
+            const SizedBox(height: 20),
+            BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
+              builder: (context, state) {
+                final owners = state is AdminDashboardLoaded ? state.ownersCount : null;
+                final users = state is AdminDashboardLoaded ? state.usersCount : null;
+                final revenue = state is AdminDashboardLoaded ? state.totalRevenue : null;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDarkGreen.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        _SidebarStatRow(
+                          icon: HugeIcons.strokeRoundedUserGroup,
+                          label: 'Owners',
+                          value: owners?.toString() ?? '—',
+                        ),
+                        const SizedBox(height: 10),
+                        _SidebarStatRow(
+                          icon: HugeIcons.strokeRoundedUser,
+                          label: 'Users',
+                          value: users?.toString() ?? '—',
+                        ),
+                        const SizedBox(height: 10),
+                        _SidebarStatRow(
+                          icon: HugeIcons.strokeRoundedMoneyBag01,
+                          label: 'Revenue',
+                          value: revenue != null ? '₹${revenue.toInt()}' : '—',
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            _buildNavItem(context, icon: HugeIcons.strokeRoundedHome01, label: 'Dashboard', index: 0),
+            BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
+              builder: (context, state) {
+                final pending = state is AdminDashboardLoaded ? state.pendingApprovalsCount : 0;
+                return _buildActionItem(
+                  context,
+                  icon: HugeIcons.strokeRoundedLocationAdd01,
+                  label: 'Approvals',
+                  badge: pending > 0 ? pending : null,
+                  onTap: onApprovalsTap,
+                );
+              },
+            ),
+            _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owners', index: 1),
+            _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Locations', index: 2),
+            _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 3),
           ],
-          Expanded(
-            child: _screens[_selectedIndex],
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildNavItem({required dynamic icon, required String label, required int index}) {
-    final isSelected = _selectedIndex == index;
+  Widget _buildNavItem(BuildContext context, {required dynamic icon, required String label, required int index}) {
+    final isSelected = selectedIndex == index;
     return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-        // Close drawer if on mobile
-        if (MediaQuery.of(context).size.width < 800 && _scaffoldKey.currentState?.isDrawerOpen == true) {
-          Navigator.of(context).pop();
-        }
-      },
+      onTap: () => onSelect(index),
       child: Container(
         color: isSelected ? AppColors.primaryDarkGreen.withOpacity(0.1) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -108,13 +203,64 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
             Text(
               label,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-              ),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                  ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActionItem(BuildContext context, {required dynamic icon, required String label, required VoidCallback onTap, int? badge}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Row(
+          children: [
+            HugeIcon(icon: icon, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    ),
+              ),
+            ),
+            if (badge != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarStatRow extends StatelessWidget {
+  final dynamic icon;
+  final String label;
+  final String value;
+
+  const _SidebarStatRow({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        HugeIcon(icon: icon, size: 16, color: AppColors.primaryDarkGreen),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkGreen)),
+      ],
     );
   }
 }
