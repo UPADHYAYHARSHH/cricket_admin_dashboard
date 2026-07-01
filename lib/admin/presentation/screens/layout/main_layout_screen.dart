@@ -9,7 +9,9 @@ import '../../blocs/locations/location_management_cubit.dart';
 import '../../blocs/owners/owner_management_cubit.dart';
 import '../../blocs/approvals/approvals_cubit.dart';
 import '../approvals/approvals_screen.dart';
+import '../app_config/app_config_screen.dart';
 import '../dashboard/dashboard_screen.dart';
+import '../login/login_screen.dart';
 import '../owner_management/owner_management_screen.dart';
 import '../location_management/location_management_screen.dart';
 
@@ -38,6 +40,34 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     super.dispose();
   }
 
+  void _confirmLogout() {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out of the admin panel?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true && mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      }
+    });
+  }
+
   void _openApprovals() {
     Navigator.push(
       context,
@@ -55,6 +85,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         BlocProvider(create: (_) => getIt<OwnerManagementCubit>(), child: const OwnerManagementScreen()),
         BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),
         const Center(child: Text('Users')),
+        const AppConfigScreen(),
       ];
 
   @override
@@ -77,6 +108,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
             Navigator.of(context).pop();
             _openApprovals();
           },
+          onLogout: _confirmLogout,
         )),
         body: Row(
           children: [
@@ -85,6 +117,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                 selectedIndex: _selectedIndex,
                 onSelect: (index) => setState(() => _selectedIndex = index),
                 onApprovalsTap: _openApprovals,
+                onLogout: _confirmLogout,
               ),
               const VerticalDivider(width: 1, thickness: 1),
             ],
@@ -100,11 +133,13 @@ class _Sidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onApprovalsTap;
+  final VoidCallback onLogout;
 
   const _Sidebar({
     required this.selectedIndex,
     required this.onSelect,
     required this.onApprovalsTap,
+    required this.onLogout,
   });
 
   @override
@@ -115,71 +150,104 @@ class _Sidebar extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 28),
-            Text(
-              'Admin Panel',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryDarkGreen,
-                  ),
-            ),
-            const SizedBox(height: 20),
-            BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
-              builder: (context, state) {
-                final owners = state is AdminDashboardLoaded ? state.ownersCount : null;
-                final users = state is AdminDashboardLoaded ? state.usersCount : null;
-                final revenue = state is AdminDashboardLoaded ? state.totalRevenue : null;
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 28),
+                    Text(
+                      'Admin Panel',
+                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDarkGreen,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
+                      builder: (context, state) {
+                        final owners = state is AdminDashboardLoaded ? state.ownersCount : null;
+                        final users = state is AdminDashboardLoaded ? state.usersCount : null;
+                        final revenue = state is AdminDashboardLoaded ? state.totalRevenue : null;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryDarkGreen.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(14),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryDarkGreen.withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Column(
+                              children: [
+                                _SidebarStatRow(
+                                  icon: HugeIcons.strokeRoundedUserGroup,
+                                  label: 'Owners',
+                                  value: owners?.toString() ?? '—',
+                                ),
+                                const SizedBox(height: 10),
+                                _SidebarStatRow(
+                                  icon: HugeIcons.strokeRoundedUser,
+                                  label: 'Users',
+                                  value: users?.toString() ?? '—',
+                                ),
+                                const SizedBox(height: 10),
+                                _SidebarStatRow(
+                                  icon: HugeIcons.strokeRoundedMoneyBag01,
+                                  label: 'Revenue',
+                                  value: revenue != null ? '₹${revenue.toInt()}' : '—',
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    child: Column(
-                      children: [
-                        _SidebarStatRow(
-                          icon: HugeIcons.strokeRoundedUserGroup,
-                          label: 'Owners',
-                          value: owners?.toString() ?? '—',
-                        ),
-                        const SizedBox(height: 10),
-                        _SidebarStatRow(
-                          icon: HugeIcons.strokeRoundedUser,
-                          label: 'Users',
-                          value: users?.toString() ?? '—',
-                        ),
-                        const SizedBox(height: 10),
-                        _SidebarStatRow(
-                          icon: HugeIcons.strokeRoundedMoneyBag01,
-                          label: 'Revenue',
-                          value: revenue != null ? '₹${revenue.toInt()}' : '—',
-                        ),
-                      ],
+                    const SizedBox(height: 24),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedHome01, label: 'Dashboard', index: 0),
+                    BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
+                      builder: (context, state) {
+                        final pending = state is AdminDashboardLoaded ? state.pendingApprovalsCount : 0;
+                        return _buildActionItem(
+                          context,
+                          icon: HugeIcons.strokeRoundedLocationAdd01,
+                          label: 'Approvals',
+                          badge: pending > 0 ? pending : null,
+                          onTap: onApprovalsTap,
+                        );
+                      },
                     ),
-                  ),
-                );
-              },
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owners', index: 1),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Locations', index: 2),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 3),
+                    const Divider(indent: 16, endIndent: 16),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 4),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
-            _buildNavItem(context, icon: HugeIcons.strokeRoundedHome01, label: 'Dashboard', index: 0),
-            BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
-              builder: (context, state) {
-                final pending = state is AdminDashboardLoaded ? state.pendingApprovalsCount : 0;
-                return _buildActionItem(
-                  context,
-                  icon: HugeIcons.strokeRoundedLocationAdd01,
-                  label: 'Approvals',
-                  badge: pending > 0 ? pending : null,
-                  onTap: onApprovalsTap,
-                );
-              },
+            const Divider(height: 1),
+            InkWell(
+              onTap: onLogout,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  children: [
+                    HugeIcon(icon: HugeIcons.strokeRoundedLogout01, color: Colors.red.shade400),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Log Out',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.red.shade400,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owners', index: 1),
-            _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Locations', index: 2),
-            _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 3),
           ],
         ),
       ),
