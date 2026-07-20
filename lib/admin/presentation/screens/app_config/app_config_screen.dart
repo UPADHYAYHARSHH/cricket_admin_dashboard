@@ -108,38 +108,38 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     try {
       final client = AdminSupabaseClient.client;
       await Future.wait([
-        client.from('app_config').upsert(
-              {'key': 'platform_fee', 'value': platformFee.toString()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'commission_rate', 'value': commissionRate.toString()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'commission_is_percentage', 'value': _commissionIsPercentage.toString()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'android_min_version', 'value': _androidMinVersionCtrl.text.trim()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'ios_min_version', 'value': _iosMinVersionCtrl.text.trim()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'android_store_url', 'value': _androidStoreUrlCtrl.text.trim()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'ios_store_url', 'value': _iosStoreUrlCtrl.text.trim()},
-              onConflict: 'key',
-            ),
-        client.from('app_config').upsert(
-              {'key': 'owner_app_maintenance', 'value': _underMaintenance.toString()},
-              onConflict: 'key',
-            ),
+        client.from('app_config').upsert({
+          'key': 'platform_fee',
+          'value': platformFee.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'commission_rate',
+          'value': commissionRate.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'commission_is_percentage',
+          'value': _commissionIsPercentage.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'android_min_version',
+          'value': _androidMinVersionCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'ios_min_version',
+          'value': _iosMinVersionCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'android_store_url',
+          'value': _androidStoreUrlCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'ios_store_url',
+          'value': _iosStoreUrlCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'owner_app_maintenance',
+          'value': _underMaintenance.toString(),
+        }, onConflict: 'key'),
       ]);
       if (mounted) _showSnack('Configuration saved successfully.');
     } catch (e) {
@@ -153,7 +153,9 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: isError ? Colors.red.shade700 : AppColors.primaryDarkGreen,
+        backgroundColor: isError
+            ? Colors.red.shade700
+            : AppColors.primaryDarkGreen,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -170,12 +172,15 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
             ? null
             : IconButton(
                 icon: const Icon(Icons.menu),
-                onPressed: () =>
-                    context.findRootAncestorStateOfType<ScaffoldState>()?.openDrawer(),
+                onPressed: () => context
+                    .findRootAncestorStateOfType<ScaffoldState>()
+                    ?.openDrawer(),
               ),
         title: Text(
           'App Configuration',
-          style: theme.textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.displayMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           Padding(
@@ -186,14 +191,19 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.save_rounded, size: 18),
               label: const Text('Save Changes'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primaryDarkGreen,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
@@ -208,12 +218,16 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                 children: [
                   Text(
                     'Fee Settings',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'These values are read by owner and user apps on each cold-start.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Wrap(
@@ -225,7 +239,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                         icon: HugeIcons.strokeRoundedMoneyBag01,
                         iconColor: AppColors.primaryDarkGreen,
                         title: 'Platform Fee',
-                        description: 'Flat ₹ amount deducted from every booking before the owner is paid.',
+                        description:
+                            'Flat ₹ amount deducted from every booking before the owner is paid.',
                         child: _NumericInput(
                           controller: _platformFeeCtrl,
                           prefix: '₹',
@@ -246,7 +261,9 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                             // Type toggle
                             Container(
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.onSurface.withOpacity(0.06),
+                                color: theme.colorScheme.onSurface.withOpacity(
+                                  0.06,
+                                ),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               padding: const EdgeInsets.all(3),
@@ -256,13 +273,17 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                                   _TypeChip(
                                     label: '% Percentage',
                                     selected: _commissionIsPercentage,
-                                    onTap: () => setState(() => _commissionIsPercentage = true),
+                                    onTap: () => setState(
+                                      () => _commissionIsPercentage = true,
+                                    ),
                                   ),
                                   const SizedBox(width: 4),
                                   _TypeChip(
                                     label: '₹ Flat Amount',
                                     selected: !_commissionIsPercentage,
-                                    onTap: () => setState(() => _commissionIsPercentage = false),
+                                    onTap: () => setState(
+                                      () => _commissionIsPercentage = false,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -283,12 +304,16 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                   const SizedBox(height: 36),
                   Text(
                     'App Status',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Controls visibility and access in the owner app.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   _ConfigCard(
@@ -302,18 +327,23 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                       children: [
                         Switch(
                           value: _underMaintenance,
-                          onChanged: (v) => setState(() => _underMaintenance = v),
-                          activeColor: AppColors.primaryDarkGreen,
+                          onChanged: (v) =>
+                              setState(() => _underMaintenance = v),
+                          activeThumbColor: AppColors.primaryDarkGreen,
                         ),
                         const SizedBox(width: 12),
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
                           child: Text(
-                            _underMaintenance ? 'Maintenance ON' : 'Maintenance OFF',
+                            _underMaintenance
+                                ? 'Maintenance ON'
+                                : 'Maintenance OFF',
                             key: ValueKey(_underMaintenance),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: _underMaintenance ? Colors.red.shade600 : AppColors.primaryDarkGreen,
+                              color: _underMaintenance
+                                  ? Colors.red.shade600
+                                  : AppColors.primaryDarkGreen,
                             ),
                           ),
                         ),
@@ -323,12 +353,16 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                   const SizedBox(height: 36),
                   Text(
                     'Force Update',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'If the owner app version is below the minimum, a non-dismissible update dialog is shown.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Wrap(
@@ -340,7 +374,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                         icon: HugeIcons.strokeRoundedAndroid,
                         iconColor: const Color(0xFF3DDC84),
                         title: 'Android',
-                        description: 'Minimum version required to run the owner app on Android.',
+                        description:
+                            'Minimum version required to run the owner app on Android.',
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -352,7 +387,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                             const SizedBox(height: 14),
                             _TextInput(
                               controller: _androidStoreUrlCtrl,
-                              hint: 'https://play.google.com/store/apps/details?id=...',
+                              hint:
+                                  'https://play.google.com/store/apps/details?id=...',
                               label: 'Play Store URL',
                             ),
                           ],
@@ -363,7 +399,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                         icon: HugeIcons.strokeRoundedApple,
                         iconColor: Colors.grey.shade700,
                         title: 'iOS',
-                        description: 'Minimum version required to run the owner app on iOS.',
+                        description:
+                            'Minimum version required to run the owner app on iOS.',
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -393,14 +430,20 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline_rounded, size: 18, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                          color: theme.colorScheme.onSurface.withOpacity(0.4),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Fee changes take effect on the owner app\'s next cold-start. '
                             'Maintenance mode activates immediately after the owner relaunches the app.',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.5),
+                              color: theme.colorScheme.onSurface.withOpacity(
+                                0.5,
+                              ),
                             ),
                           ),
                         ),
@@ -467,7 +510,9 @@ class _ConfigCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -494,7 +539,11 @@ class _TypeChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _TypeChip({required this.label, required this.selected, required this.onTap});
+  const _TypeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -512,7 +561,9 @@ class _TypeChip extends StatelessWidget {
           label,
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.55),
+            color: selected
+                ? Colors.white
+                : theme.colorScheme.onSurface.withOpacity(0.55),
           ),
         ),
       ),
@@ -525,7 +576,11 @@ class _TextInput extends StatelessWidget {
   final String hint;
   final String label;
 
-  const _TextInput({required this.controller, required this.hint, required this.label});
+  const _TextInput({
+    required this.controller,
+    required this.hint,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -533,17 +588,27 @@ class _TextInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           style: theme.textTheme.bodyMedium,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.3)),
+            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.3),
+            ),
             filled: true,
             fillColor: theme.colorScheme.onSurface.withOpacity(0.04),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(color: theme.dividerColor),
@@ -554,7 +619,10 @@ class _TextInput extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primaryDarkGreen, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primaryDarkGreen,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -590,14 +658,19 @@ class _NumericInput extends StatelessWidget {
             isDecimal ? RegExp(r'^\d*\.?\d*') : RegExp(r'^\d*'),
           ),
         ],
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         decoration: InputDecoration(
           prefixText: prefix,
           suffixText: suffix,
           hintText: hint,
           filled: true,
           fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.04),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(color: Theme.of(context).dividerColor),
@@ -608,7 +681,10 @@ class _NumericInput extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.primaryDarkGreen, width: 1.5),
+            borderSide: const BorderSide(
+              color: AppColors.primaryDarkGreen,
+              width: 1.5,
+            ),
           ),
         ),
       ),

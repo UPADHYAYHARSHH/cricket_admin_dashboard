@@ -14,6 +14,8 @@ import '../dashboard/dashboard_screen.dart';
 import '../login/login_screen.dart';
 import '../owner_management/owner_management_screen.dart';
 import '../location_management/location_management_screen.dart';
+import '../sports_management/sports_management_screen.dart';
+import '../../blocs/sports/sports_management_cubit.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -84,6 +86,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         BlocProvider(create: (_) => getIt<AdminDashboardCubit>()..fetchStats(), child: const DashboardScreen()),
         BlocProvider(create: (_) => getIt<OwnerManagementCubit>(), child: const OwnerManagementScreen()),
         BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),
+        BlocProvider(create: (_) => getIt<SportsManagementCubit>(), child: const SportsManagementScreen()),
         const Center(child: Text('Users')),
         const AppConfigScreen(),
       ];
@@ -220,9 +223,10 @@ class _Sidebar extends StatelessWidget {
                     ),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owners', index: 1),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Locations', index: 2),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 3),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedCricketBat, label: 'Sports', index: 3),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 4),
                     const Divider(indent: 16, endIndent: 16),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 4),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 5),
                     const SizedBox(height: 8),
                   ],
                 ),

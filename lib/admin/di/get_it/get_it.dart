@@ -12,6 +12,7 @@ import 'package:cricket_admin_panel/admin/presentation/blocs/approvals/approvals
 import 'package:cricket_admin_panel/admin/presentation/blocs/dashboard/admin_dashboard_cubit.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/locations/location_management_cubit.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/owners/owner_management_cubit.dart';
+import 'package:cricket_admin_panel/admin/presentation/blocs/sports/sports_management_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -58,5 +59,8 @@ void initAdminDi() {
       getIt<AdminBookingRepository>(),
       getIt<AdminLocationRepository>(),
     ),
+  );
+  getIt.registerFactory<SportsManagementCubit>(
+    () => SportsManagementCubit(getIt<SupabaseClient>()),
   );
 }

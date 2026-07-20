@@ -8,7 +8,11 @@ class LocationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> location;
   final String ownerName;
 
-  const LocationDetailScreen({super.key, required this.location, required this.ownerName});
+  const LocationDetailScreen({
+    super.key,
+    required this.location,
+    required this.ownerName,
+  });
 
   @override
   State<LocationDetailScreen> createState() => _LocationDetailScreenState();
@@ -20,7 +24,8 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
   List<Map<String, dynamic>> _bookings = [];
 
   bool get _locationIsLive =>
-      widget.location['is_active'] != false && widget.location['documents_verified'] == true;
+      widget.location['is_active'] != false &&
+      widget.location['documents_verified'] == true;
 
   @override
   void initState() {
@@ -47,13 +52,18 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     if (value && !_locationIsLive) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Approve and activate the location before enabling its grounds.'),
+          content: Text(
+            'Approve and activate the location before enabling its grounds.',
+          ),
           backgroundColor: AppColors.accentOrange,
         ),
       );
       return;
     }
-    await context.read<LocationManagementCubit>().toggleGroundAvailable(groundId, value);
+    await context.read<LocationManagementCubit>().toggleGroundAvailable(
+      groundId,
+      value,
+    );
     setState(() {
       _grounds = _grounds
           .map((g) => g['id'] == groundId ? {...g, 'is_available': value} : g)
@@ -71,10 +81,15 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
         appBar: AppBar(
           title: Text(
             (widget.location['address'] as String?) ?? 'Location',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Grounds'), Tab(text: 'Booking History')],
+            tabs: [
+              Tab(text: 'Grounds'),
+              Tab(text: 'Booking History'),
+            ],
           ),
         ),
         body: _loading
@@ -89,7 +104,10 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                       child: Text(
                         'This location is ${widget.location['documents_verified'] == true ? 'disabled' : 'not yet approved'}. '
                         'Its grounds stay hidden from players until it is approved and active.',
-                        style: const TextStyle(color: AppColors.accentOrange, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: AppColors.accentOrange,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   Expanded(
@@ -116,17 +134,23 @@ class _GroundsTab extends StatelessWidget {
   final bool isDesktop;
   final void Function(String groundId, bool value) onToggle;
 
-  const _GroundsTab({required this.grounds, required this.isDesktop, required this.onToggle});
+  const _GroundsTab({
+    required this.grounds,
+    required this.isDesktop,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (grounds.isEmpty) {
-      return const Center(child: Text('No grounds added at this location yet.'));
+      return const Center(
+        child: Text('No grounds added at this location yet.'),
+      );
     }
     return ListView.separated(
       padding: EdgeInsets.all(isDesktop ? 32 : 16),
       itemCount: grounds.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final ground = grounds[index];
         final isAvailable = ground['is_available'] != false;
@@ -145,7 +169,9 @@ class _GroundsTab extends StatelessWidget {
                   children: [
                     Text(
                       ground['name'] as String? ?? 'Ground',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -155,11 +181,15 @@ class _GroundsTab extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(isAvailable ? 'Available' : 'Disabled',
-                  style: TextStyle(color: isAvailable ? AppColors.primaryDarkGreen : Colors.grey)),
+              Text(
+                isAvailable ? 'Available' : 'Disabled',
+                style: TextStyle(
+                  color: isAvailable ? AppColors.primaryDarkGreen : Colors.grey,
+                ),
+              ),
               Switch(
                 value: isAvailable,
-                activeColor: AppColors.primaryDarkGreen,
+                activeThumbColor: AppColors.primaryDarkGreen,
                 onChanged: (value) => onToggle(ground['id'] as String, value),
               ),
             ],
@@ -193,7 +223,9 @@ class _HistoryTab extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
-            headingTextStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            headingTextStyle: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             columns: const [
               DataColumn(label: Text('Date')),
               DataColumn(label: Text('Ground')),
@@ -205,19 +237,39 @@ class _HistoryTab extends StatelessWidget {
               final ground = b['grounds'] as Map<String, dynamic>?;
               DateTime? date;
               try {
-                date = DateTime.parse((b['booking_date'] ?? b['created_at']) as String).toLocal();
+                date = DateTime.parse(
+                  (b['booking_date'] ?? b['created_at']) as String,
+                ).toLocal();
               } catch (_) {}
-              return DataRow(cells: [
-                DataCell(Text(date != null ? DateFormat('d MMM yyyy, h:mm a').format(date) : '-')),
-                DataCell(Text(ground?['name'] as String? ?? 'Ground')),
-                DataCell(Text('₹${((b['amount'] ?? b['total_amount'] ?? 0) as num).toInt()}')),
-                DataCell(Text((b['status'] ?? '').toString().toUpperCase())),
-                DataCell(Icon(
-                  b['checked_in'] == true ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: b['checked_in'] == true ? AppColors.primaryDarkGreen : Colors.grey,
-                  size: 18,
-                )),
-              ]);
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      date != null
+                          ? DateFormat('d MMM yyyy, h:mm a').format(date)
+                          : '-',
+                    ),
+                  ),
+                  DataCell(Text(ground?['name'] as String? ?? 'Ground')),
+                  DataCell(
+                    Text(
+                      '₹${((b['amount'] ?? b['total_amount'] ?? 0) as num).toInt()}',
+                    ),
+                  ),
+                  DataCell(Text((b['status'] ?? '').toString().toUpperCase())),
+                  DataCell(
+                    Icon(
+                      b['checked_in'] == true
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: b['checked_in'] == true
+                          ? AppColors.primaryDarkGreen
+                          : Colors.grey,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              );
             }).toList(),
           ),
         ),

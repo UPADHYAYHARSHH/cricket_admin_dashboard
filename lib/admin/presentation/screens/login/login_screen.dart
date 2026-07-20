@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../common/constants/app_colors.dart';
 import '../layout/main_layout_screen.dart';
 
@@ -19,11 +18,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
-    
-    if (_emailController.text == 'admin@admin.com' && _passwordController.text == 'admin123') {
+
+    if (_emailController.text == 'admin@admin.com' &&
+        _passwordController.text == 'admin123') {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainLayoutScreen()),
@@ -32,11 +32,15 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid credentials. Use admin@admin.com / admin123')),
+          const SnackBar(
+            content: Text(
+              'Invalid credentials. Use admin@admin.com / admin123',
+            ),
+          ),
         );
       }
     }
-    
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -108,9 +112,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
-                    : const Text('Login', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ],
           ),

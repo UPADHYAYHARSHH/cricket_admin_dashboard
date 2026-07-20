@@ -9,7 +9,8 @@ class LocationManagementScreen extends StatefulWidget {
   const LocationManagementScreen({super.key});
 
   @override
-  State<LocationManagementScreen> createState() => _LocationManagementScreenState();
+  State<LocationManagementScreen> createState() =>
+      _LocationManagementScreenState();
 }
 
 class _LocationManagementScreenState extends State<LocationManagementScreen> {
@@ -40,20 +41,28 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
             ? null
             : IconButton(
                 icon: const Icon(Icons.menu),
-                onPressed: () => context.findRootAncestorStateOfType<ScaffoldState>()?.openDrawer(),
+                onPressed: () => context
+                    .findRootAncestorStateOfType<ScaffoldState>()
+                    ?.openDrawer(),
               ),
         title: Text(
           'Location Management',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: cubit.fetchLocations),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: cubit.fetchLocations,
+          ),
           const SizedBox(width: 16),
         ],
       ),
       body: BlocBuilder<LocationManagementCubit, LocationManagementState>(
         builder: (context, state) {
-          if (state is LocationManagementLoading || state is LocationManagementInitial) {
+          if (state is LocationManagementLoading ||
+              state is LocationManagementInitial) {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is LocationManagementError) {
@@ -77,7 +86,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
-                  headingTextStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  headingTextStyle: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                   columns: const [
                     DataColumn(label: Text('Location')),
                     DataColumn(label: Text('Owner')),
@@ -87,35 +97,48 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
                   ],
                   rows: loaded.locations.map((location) {
                     final status = _statusOf(location);
-                    final ownerName = loaded.ownerNameById[location['owner_id'].toString()] ?? 'Owner';
+                    final ownerName =
+                        loaded.ownerNameById[location['owner_id'].toString()] ??
+                        'Owner';
                     final isActive = location['is_active'] != false;
                     return DataRow(
                       cells: [
-                        DataCell(Text(
-                          (location['address'] as String?)?.isNotEmpty == true
-                              ? location['address'] as String
-                              : 'Unnamed',
-                        )),
+                        DataCell(
+                          Text(
+                            (location['address'] as String?)?.isNotEmpty == true
+                                ? location['address'] as String
+                                : 'Unnamed',
+                          ),
+                        ),
                         DataCell(Text(ownerName)),
                         DataCell(
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: status.color.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
                               status.label.toUpperCase(),
-                              style: TextStyle(color: status.color, fontWeight: FontWeight.bold, fontSize: 12),
+                              style: TextStyle(
+                                color: status.color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),
                         DataCell(
                           Switch(
                             value: isActive,
-                            activeColor: AppColors.primaryDarkGreen,
-                            onChanged: (value) =>
-                                cubit.toggleLocationActive(location['id'] as String, value),
+                            activeThumbColor: AppColors.primaryDarkGreen,
+                            onChanged: (value) => cubit.toggleLocationActive(
+                              location['id'] as String,
+                              value,
+                            ),
                           ),
                         ),
                         DataCell(

@@ -11,15 +11,17 @@ class AppTheme {
         primary: AppColors.primaryDarkGreen,
         secondary: AppColors.accentOrange,
         surface: AppColors.lightSurface,
-        background: AppColors.lightBackground,
       ),
       scaffoldBackgroundColor: AppColors.lightBackground,
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme).copyWith(
-        displayLarge: GoogleFonts.outfit(color: AppColors.lightTextPrimary),
-        displayMedium: GoogleFonts.outfit(color: AppColors.lightTextPrimary),
-        bodyLarge: GoogleFonts.outfit(color: AppColors.lightTextPrimary),
-        bodyMedium: GoogleFonts.outfit(color: AppColors.lightTextSecondary),
-      ),
+      textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme)
+          .copyWith(
+            displayLarge: GoogleFonts.outfit(color: AppColors.lightTextPrimary),
+            displayMedium: GoogleFonts.outfit(
+              color: AppColors.lightTextPrimary,
+            ),
+            bodyLarge: GoogleFonts.outfit(color: AppColors.lightTextPrimary),
+            bodyMedium: GoogleFonts.outfit(color: AppColors.lightTextSecondary),
+          ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.lightSurface,
         foregroundColor: AppColors.lightTextPrimary,
@@ -37,15 +39,15 @@ class AppTheme {
         primary: AppColors.primaryDarkGreen,
         secondary: AppColors.accentOrange,
         surface: AppColors.darkSurface,
-        background: AppColors.darkBackground,
       ),
       scaffoldBackgroundColor: AppColors.darkBackground,
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.outfit(color: AppColors.darkTextPrimary),
-        displayMedium: GoogleFonts.outfit(color: AppColors.darkTextPrimary),
-        bodyLarge: GoogleFonts.outfit(color: AppColors.darkTextPrimary),
-        bodyMedium: GoogleFonts.outfit(color: AppColors.darkTextSecondary),
-      ),
+      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme)
+          .copyWith(
+            displayLarge: GoogleFonts.outfit(color: AppColors.darkTextPrimary),
+            displayMedium: GoogleFonts.outfit(color: AppColors.darkTextPrimary),
+            bodyLarge: GoogleFonts.outfit(color: AppColors.darkTextPrimary),
+            bodyMedium: GoogleFonts.outfit(color: AppColors.darkTextSecondary),
+          ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.darkSurface,
         foregroundColor: AppColors.darkTextPrimary,
