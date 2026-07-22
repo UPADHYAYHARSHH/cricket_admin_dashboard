@@ -9,6 +9,7 @@ import 'admin/presentation/screens/login/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+
   await dotenv.load(fileName: ".env");
 
   await Supabase.initialize(

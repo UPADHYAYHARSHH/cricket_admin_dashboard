@@ -115,6 +115,9 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
               final owner = loaded.pendingOwners[index];
               final ownerName = owner['owner_name'] ?? 'Unknown Owner';
               final businessName = owner['business_name'] ?? 'Unnamed Business';
+              final venueName = owner['venue_name']?.toString().isNotEmpty == true ? owner['venue_name'] : null;
+              final city = owner['city']?.toString().isNotEmpty == true ? owner['city'] : null;
+              final phone = owner['phone']?.toString().isNotEmpty == true ? owner['phone'] : null;
               final address = owner['address'] ?? 'No address provided';
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -145,20 +148,31 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                businessName,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$ownerName • $address',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    Text(
+                      ownerName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                     ),
+                    if (phone != null) ...[
+                      const SizedBox(height: 2),
+                      Text(phone, style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              _infoChip(Icons.store_outlined, businessName),
+              if (venueName != null) _infoChip(Icons.stadium_outlined, venueName),
+              if (city != null) _infoChip(Icons.location_city_outlined, city),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(address, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
@@ -211,6 +225,23 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           ),
           const SizedBox(width: 6),
           Text(label, style: TextStyle(fontSize: 12, color: present ? AppColors.primaryDarkGreen : Colors.grey)),
+        ],
+      ),
+    );
+  }
+  Widget _infoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.grey[600]),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
         ],
       ),
     );
