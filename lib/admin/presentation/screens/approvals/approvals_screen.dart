@@ -91,7 +91,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           }
 
           final loaded = state as ApprovalsLoaded;
-          if (loaded.pendingLocations.isEmpty) {
+          if (loaded.pendingOwners.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +102,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                     color: AppColors.primaryDarkGreen.withOpacity(0.4),
                   ),
                   const SizedBox(height: 16),
-                  const Text('No pending location approvals.'),
+                  const Text('No pending owner approvals.'),
                 ],
               ),
             );
@@ -110,10 +110,12 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
           return ListView.builder(
             padding: EdgeInsets.all(isDesktop ? 32 : 16),
-            itemCount: loaded.pendingLocations.length,
+            itemCount: loaded.pendingOwners.length,
             itemBuilder: (context, index) {
-              final location = loaded.pendingLocations[index];
-              final ownerName = loaded.ownerNameById[location['owner_id'].toString()] ?? 'Owner';
+              final owner = loaded.pendingOwners[index];
+              final ownerName = owner['owner_name'] ?? 'Unknown Owner';
+              final businessName = owner['business_name'] ?? 'Unnamed Business';
+              final address = owner['address'] ?? 'No address provided';
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(20),
@@ -134,7 +136,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: const HugeIcon(
-                            icon: HugeIcons.strokeRoundedLocation01,
+                            icon: HugeIcons.strokeRoundedUserGroup,
                             color: AppColors.accentOrange,
                           ),
                         ),
@@ -144,14 +146,12 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (location['address'] as String?)?.isNotEmpty == true
-                                    ? location['address'] as String
-                                    : 'Unnamed location',
+                                businessName,
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '$ownerName • ${location['city'] ?? ''}',
+                                '$ownerName • $address',
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             ],
@@ -164,8 +164,8 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _docChip('Property document', location['property_document_url'] != null),
-                        _docChip('NOC', location['noc_url'] != null),
+                        _docChip('PAN Card', owner['pan_url'] != null && owner['pan_url'].toString().isNotEmpty),
+                        _docChip('Aadhar Card', owner['aadhar_url'] != null && owner['aadhar_url'].toString().isNotEmpty),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -173,13 +173,13 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                       children: [
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDarkGreen),
-                          onPressed: () => _approve(location['id'] as String),
+                          onPressed: () => _approve(owner['id'] as String),
                           child: const Text('Approve', style: TextStyle(color: Colors.white)),
                         ),
                         const SizedBox(width: 12),
                         OutlinedButton(
                           style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                          onPressed: () => _reject(location['id'] as String),
+                          onPressed: () => _reject(owner['id'] as String),
                           child: const Text('Reject'),
                         ),
                       ],

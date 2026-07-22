@@ -12,24 +12,20 @@ class ApprovalsCubit extends Cubit<ApprovalsState> {
   Future<void> fetchPending() async {
     emit(ApprovalsLoading());
     try {
-      final pending = await _locationRepository.getPendingLocations();
-      final owners = await _ownerRepository.getAllOwners();
-      final ownerNameById = {
-        for (final o in owners) o['id'].toString(): (o['owner_name'] as String?) ?? 'Owner',
-      };
-      emit(ApprovalsLoaded(pendingLocations: pending, ownerNameById: ownerNameById));
+      final pendingOwners = await _ownerRepository.getPendingOwners();
+      emit(ApprovalsLoaded(pendingOwners: pendingOwners));
     } catch (e) {
       emit(ApprovalsError(e.toString()));
     }
   }
 
-  Future<void> approve(String locationId) async {
-    await _locationRepository.approveLocation(locationId);
+  Future<void> approve(String ownerId) async {
+    await _ownerRepository.approveOwner(ownerId);
     await fetchPending();
   }
 
-  Future<void> reject(String locationId, {String? reason}) async {
-    await _locationRepository.rejectLocation(locationId, reason: reason);
+  Future<void> reject(String ownerId, {String? reason}) async {
+    await _ownerRepository.rejectOwner(ownerId, reason: reason);
     await fetchPending();
   }
 }

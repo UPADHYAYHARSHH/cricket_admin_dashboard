@@ -5,10 +5,9 @@ class ApprovalsInitial extends ApprovalsState {}
 class ApprovalsLoading extends ApprovalsState {}
 
 class ApprovalsLoaded extends ApprovalsState {
-  final List<Map<String, dynamic>> pendingLocations;
-  final Map<String, String> ownerNameById;
+  final List<Map<String, dynamic>> pendingOwners;
 
-  ApprovalsLoaded({required this.pendingLocations, required this.ownerNameById});
+  ApprovalsLoaded({required this.pendingOwners});
 }
 
 class ApprovalsError extends ApprovalsState {
