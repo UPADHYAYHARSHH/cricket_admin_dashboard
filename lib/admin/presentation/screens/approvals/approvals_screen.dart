@@ -124,95 +124,6 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
             itemCount: loaded.pendingOwners.length,
             itemBuilder: (context, index) {
               final owner = loaded.pendingOwners[index];
-<<<<<<< Updated upstream
-              final ownerName = owner['owner_name'] ?? 'Unknown Owner';
-              final businessName = owner['business_name'] ?? 'Unnamed Business';
-              final venueName = owner['venue_name']?.toString().isNotEmpty == true ? owner['venue_name'] : null;
-              final city = owner['city']?.toString().isNotEmpty == true ? owner['city'] : null;
-              final phone = owner['phone']?.toString().isNotEmpty == true ? owner['phone'] : null;
-              final address = owner['address'] ?? 'No address provided';
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentOrange.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const HugeIcon(
-                            icon: HugeIcons.strokeRoundedUserGroup,
-                            color: AppColors.accentOrange,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                    Text(
-                      ownerName,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    if (phone != null) ...[
-                      const SizedBox(height: 2),
-                      Text(phone, style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              _infoChip(Icons.store_outlined, businessName),
-              if (venueName != null) _infoChip(Icons.stadium_outlined, venueName),
-              if (city != null) _infoChip(Icons.location_city_outlined, city),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(address, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _docChip('PAN Card', owner['pan_url'] != null && owner['pan_url'].toString().isNotEmpty),
-                        _docChip('Aadhar Card', owner['aadhar_url'] != null && owner['aadhar_url'].toString().isNotEmpty),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDarkGreen),
-                          onPressed: () => _approve(owner['id'] as String),
-                          child: const Text('Approve', style: TextStyle(color: Colors.white)),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                          onPressed: () => _reject(owner['id'] as String),
-                          child: const Text('Reject'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-=======
               final ownerId = owner['id'].toString();
               final locations = loaded.locationsByOwner[ownerId] ?? [];
               return _OwnerApprovalCard(
@@ -221,7 +132,6 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                 onApprove: () => _approve(ownerId),
                 onReject: () => _reject(ownerId),
                 onDocumentTap: _showDocumentPreview,
->>>>>>> Stashed changes
               );
             },
           );
@@ -476,11 +386,12 @@ class _OwnerApprovalCard extends StatelessWidget {
       ),
     );
   }
+
   Widget _infoChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
+        color: Colors.grey.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

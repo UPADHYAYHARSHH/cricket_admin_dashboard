@@ -12,14 +12,7 @@ class ApprovalsCubit extends Cubit<ApprovalsState> {
   Future<void> fetchPending() async {
     emit(ApprovalsLoading());
     try {
-<<<<<<< Updated upstream
       final pendingOwners = await _ownerRepository.getPendingOwners();
-      emit(ApprovalsLoaded(pendingOwners: pendingOwners));
-=======
-      final allOwners = await _ownerRepository.getAllOwners();
-      final pendingOwners = allOwners
-          .where((o) => o['status'] == 'submitted')
-          .toList();
 
       final allLocations = await _locationRepository.getAllLocations();
       final locationsByOwner = <String, List<Map<String, dynamic>>>{};
@@ -35,22 +28,12 @@ class ApprovalsCubit extends Cubit<ApprovalsState> {
         pendingOwners: pendingOwners,
         locationsByOwner: locationsByOwner,
       ));
->>>>>>> Stashed changes
     } catch (e) {
       emit(ApprovalsError(e.toString()));
     }
   }
 
   Future<void> approve(String ownerId) async {
-<<<<<<< Updated upstream
-    await _ownerRepository.approveOwner(ownerId);
-    await fetchPending();
-  }
-
-  Future<void> reject(String ownerId, {String? reason}) async {
-    await _ownerRepository.rejectOwner(ownerId, reason: reason);
-    await fetchPending();
-=======
     try {
       await _ownerRepository.approveOwner(ownerId);
 
@@ -100,6 +83,5 @@ class ApprovalsCubit extends Cubit<ApprovalsState> {
     } catch (e) {
       emit(ApprovalsError(e.toString()));
     }
->>>>>>> Stashed changes
   }
 }

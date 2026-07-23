@@ -3,11 +3,8 @@ abstract class AdminOwnerRepository {
 
   Future<int> getUserCount();
 
-<<<<<<< Updated upstream
   Future<List<Map<String, dynamic>>> getPendingOwners();
-  Future<void> approveOwner(String ownerId);
-  Future<void> rejectOwner(String ownerId, {String? reason});
-=======
+
   Future<void> approveOwner(String ownerId);
 
   Future<void> rejectOwner(String ownerId, {String? reason});
@@ -18,5 +15,4 @@ abstract class AdminOwnerRepository {
     required String message,
     required String type,
   });
->>>>>>> Stashed changes
 }

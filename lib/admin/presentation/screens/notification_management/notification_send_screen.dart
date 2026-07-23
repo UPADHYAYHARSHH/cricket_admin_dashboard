@@ -110,7 +110,7 @@ class _NotificationSendScreenState extends State<NotificationSendScreen> {
                             Text('Notification Type', style: Theme.of(context).textTheme.titleSmall),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedType,
+                              value: _selectedType,
                               decoration: const InputDecoration(
                                 border: OutlineInputBorder(),
                                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
