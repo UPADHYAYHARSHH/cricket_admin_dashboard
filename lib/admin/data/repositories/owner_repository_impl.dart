@@ -19,6 +19,7 @@ class OwnerRepositoryImpl implements AdminOwnerRepository {
   }
 
   @override
+<<<<<<< Updated upstream
   Future<List<Map<String, dynamic>>> getPendingOwners() async {
     final response = await _supabase
         .from('owner_details')
@@ -32,6 +33,12 @@ class OwnerRepositoryImpl implements AdminOwnerRepository {
   Future<void> approveOwner(String ownerId) async {
     await _supabase.from('owner_details').update({
       'status': 'approved',
+=======
+  Future<void> approveOwner(String ownerId) async {
+    await _supabase.from('owner_details').update({
+      'status': 'approved',
+      'updated_at': DateTime.now().toIso8601String(),
+>>>>>>> Stashed changes
     }).eq('id', ownerId);
   }
 
@@ -39,8 +46,31 @@ class OwnerRepositoryImpl implements AdminOwnerRepository {
   Future<void> rejectOwner(String ownerId, {String? reason}) async {
     await _supabase.from('owner_details').update({
       'status': 'rejected',
+<<<<<<< Updated upstream
       // If there's a reason column in the future, we can add it here.
       // 'rejection_reason': reason,
     }).eq('id', ownerId);
   }
+=======
+      'rejection_reason': (reason == null || reason.isEmpty) ? 'Rejected by admin' : reason,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', ownerId);
+  }
+
+  @override
+  Future<void> sendNotification({
+    required String userId,
+    required String title,
+    required String message,
+    required String type,
+  }) async {
+    await _supabase.from('notifications').insert({
+      'user_id': userId,
+      'title': title,
+      'message': message,
+      'type': type,
+      'is_read': false,
+    });
+  }
+>>>>>>> Stashed changes
 }

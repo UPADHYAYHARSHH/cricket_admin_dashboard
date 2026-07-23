@@ -10,8 +10,7 @@ class AdminDashboardLoaded extends AdminDashboardState {
   final int ownersCount;
   final int usersCount;
   final double totalRevenue;
-  final List<Map<String, dynamic>> recentPending;
-  final Map<String, String> ownerNameById;
+  final List<Map<String, dynamic>> recentPendingOwners;
 
   AdminDashboardLoaded({
     required this.pendingApprovalsCount,
@@ -19,8 +18,7 @@ class AdminDashboardLoaded extends AdminDashboardState {
     required this.ownersCount,
     required this.usersCount,
     required this.totalRevenue,
-    required this.recentPending,
-    required this.ownerNameById,
+    required this.recentPendingOwners,
   });
 }
 

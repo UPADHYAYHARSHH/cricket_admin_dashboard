@@ -15,7 +15,10 @@ import '../login/login_screen.dart';
 import '../owner_management/owner_management_screen.dart';
 import '../location_management/location_management_screen.dart';
 import '../sports_management/sports_management_screen.dart';
+import '../notification_management/notification_send_screen.dart';
+import '../notification_management/notification_history_screen.dart';
 import '../../blocs/sports/sports_management_cubit.dart';
+import '../../blocs/notification/admin_notification_cubit.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -88,6 +91,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),
         BlocProvider(create: (_) => getIt<SportsManagementCubit>(), child: const SportsManagementScreen()),
         const Center(child: Text('Users')),
+        BlocProvider(create: (_) => getIt<AdminNotificationCubit>(), child: const NotificationSendScreen()),
+        BlocProvider(create: (_) => getIt<AdminNotificationCubit>()..fetchNotifications(), child: const NotificationHistoryScreen()),
         const AppConfigScreen(),
       ];
 
@@ -179,7 +184,7 @@ class _Sidebar extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryDarkGreen.withOpacity(0.06),
+                              color: AppColors.primaryDarkGreen.withValues(alpha:0.06),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Column(
@@ -225,8 +230,10 @@ class _Sidebar extends StatelessWidget {
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Locations', index: 2),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedCricketBat, label: 'Sports', index: 3),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 4),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedNotification03, label: 'Send Notification', index: 5),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedClock01, label: 'Notification History', index: 6),
                     const Divider(indent: 16, endIndent: 16),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 5),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 7),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -263,20 +270,20 @@ class _Sidebar extends StatelessWidget {
     return InkWell(
       onTap: () => onSelect(index),
       child: Container(
-        color: isSelected ? AppColors.primaryDarkGreen.withOpacity(0.1) : Colors.transparent,
+        color: isSelected ? AppColors.primaryDarkGreen.withValues(alpha:0.1) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
           children: [
             HugeIcon(
               icon: icon,
-              color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.6),
             ),
             const SizedBox(width: 16),
             Text(
               label,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.8),
                   ),
             ),
           ],
@@ -292,13 +299,13 @@ class _Sidebar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
           children: [
-            HugeIcon(icon: icon, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+            HugeIcon(icon: icon, color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.6)),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.8),
                     ),
               ),
             ),

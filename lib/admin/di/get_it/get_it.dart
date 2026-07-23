@@ -13,6 +13,9 @@ import 'package:cricket_admin_panel/admin/presentation/blocs/dashboard/admin_das
 import 'package:cricket_admin_panel/admin/presentation/blocs/locations/location_management_cubit.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/owners/owner_management_cubit.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/sports/sports_management_cubit.dart';
+import 'package:cricket_admin_panel/admin/data/repositories/admin_notification_repository_impl.dart';
+import 'package:cricket_admin_panel/admin/domain/repositories/admin_notification_repository.dart';
+import 'package:cricket_admin_panel/admin/presentation/blocs/notification/admin_notification_cubit.dart';
 
 final getIt = GetIt.instance;
 
@@ -39,7 +42,6 @@ void initAdminDi() {
   );
   getIt.registerFactory<AdminDashboardCubit>(
     () => AdminDashboardCubit(
-      getIt<AdminLocationRepository>(),
       getIt<AdminGroundRepository>(),
       getIt<AdminOwnerRepository>(),
       getIt<AdminBookingRepository>(),
@@ -62,5 +64,12 @@ void initAdminDi() {
   );
   getIt.registerFactory<SportsManagementCubit>(
     () => SportsManagementCubit(getIt<SupabaseClient>()),
+  );
+
+  getIt.registerLazySingleton<AdminNotificationRepository>(
+    () => AdminNotificationRepositoryImpl(getIt<SupabaseClient>()),
+  );
+  getIt.registerFactory<AdminNotificationCubit>(
+    () => AdminNotificationCubit(getIt<AdminNotificationRepository>()),
   );
 }

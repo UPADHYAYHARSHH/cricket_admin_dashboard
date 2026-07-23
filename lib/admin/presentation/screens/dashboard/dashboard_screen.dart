@@ -137,11 +137,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (loaded.recentPending.isEmpty)
-                    Text('No pending location approvals.', style: Theme.of(context).textTheme.bodyMedium)
+                  if (loaded.recentPendingOwners.isEmpty)
+                    Text('No pending owner approvals.', style: Theme.of(context).textTheme.bodyMedium)
                   else
-                    ...loaded.recentPending.map((location) {
-                      final ownerName = loaded.ownerNameById[location['owner_id'].toString()] ?? 'Owner';
+                    ...loaded.recentPendingOwners.map((owner) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(14),
@@ -152,11 +151,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         child: Row(
                           children: [
-                            const HugeIcon(icon: HugeIcons.strokeRoundedLocation01, color: AppColors.accentOrange),
+                            const HugeIcon(icon: HugeIcons.strokeRoundedUser02, color: AppColors.accentOrange),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                '${(location['address'] as String?)?.isNotEmpty == true ? location['address'] : 'Unnamed location'} • $ownerName',
+                                '${owner['owner_name'] ?? 'Owner'} • ${owner['business_name'] ?? ''}',
                               ),
                             ),
                             TextButton(onPressed: _openApprovals, child: const Text('Review')),
@@ -201,7 +200,7 @@ class _StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Theme.of(context).dividerColor),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha:0.02), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -215,7 +214,7 @@ class _StatCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: color.withValues(alpha:0.1), borderRadius: BorderRadius.circular(8)),
                   child: HugeIcon(icon: icon, color: color, size: 20),
                 ),
               ],
