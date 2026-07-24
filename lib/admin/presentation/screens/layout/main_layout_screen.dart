@@ -226,8 +226,8 @@ class _Sidebar extends StatelessWidget {
                         );
                       },
                     ),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owners', index: 1),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Locations', index: 2),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owner Verification', index: 1),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Location Verification', index: 2),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedCricketBat, label: 'Sports', index: 3),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 4),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedNotification03, label: 'Send Notification', index: 5),

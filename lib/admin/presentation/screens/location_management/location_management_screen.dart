@@ -30,6 +30,43 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
     return (label: 'Pending', color: AppColors.accentOrange);
   }
 
+  void _showRejectDialog(String locationId) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Location'),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(
+            hintText: 'Reason for rejection (optional)',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              context.read<LocationManagementCubit>().rejectLocation(
+                locationId,
+                reason: reasonController.text.trim().isNotEmpty
+                    ? reasonController.text.trim()
+                    : null,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
@@ -46,7 +83,7 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
                     ?.openDrawer(),
               ),
         title: Text(
-          'Location Management',
+          'Location Verification',
           style: Theme.of(
             context,
           ).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -118,7 +155,7 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: status.color.withOpacity(0.1),
+                              color: status.color.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
@@ -142,17 +179,38 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
                           ),
                         ),
                         DataCell(
-                          TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => LocationDetailScreen(
-                                  location: location,
-                                  ownerName: ownerName,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (status.label == 'Pending' || status.label == 'Rejected')
+                                TextButton.icon(
+                                  onPressed: () => cubit.approveLocation(
+                                    location['id'] as String,
+                                  ),
+                                  icon: const Icon(Icons.check_circle, color: AppColors.primaryDarkGreen, size: 18),
+                                  label: const Text('Approve', style: TextStyle(color: AppColors.primaryDarkGreen)),
                                 ),
+                              if (status.label == 'Pending' || status.label == 'Approved')
+                                TextButton.icon(
+                                  onPressed: () => _showRejectDialog(
+                                    location['id'] as String,
+                                  ),
+                                  icon: const Icon(Icons.cancel, color: Colors.red, size: 18),
+                                  label: const Text('Reject', style: TextStyle(color: Colors.red)),
+                                ),
+                              TextButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => LocationDetailScreen(
+                                      location: location,
+                                      ownerName: ownerName,
+                                    ),
+                                  ),
+                                ),
+                                child: const Text('View Details'),
                               ),
-                            ),
-                            child: const Text('View Details'),
+                            ],
                           ),
                         ),
                       ],

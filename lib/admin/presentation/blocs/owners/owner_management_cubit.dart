@@ -48,4 +48,44 @@ class OwnerManagementCubit extends Cubit<OwnerManagementState> {
       emit(OwnerManagementError(e.toString()));
     }
   }
+
+  Future<void> approveOwner(String ownerId) async {
+    final current = state;
+    if (current is! OwnerManagementLoaded) return;
+
+    await _ownerRepository.approveOwner(ownerId);
+
+    final updated = current.owners.map((s) {
+      if (s.owner['id'].toString() == ownerId) {
+        return OwnerSummary(
+          owner: {...s.owner, 'status': 'approved'},
+          locationsCount: s.locationsCount,
+          bookingsCount: s.bookingsCount,
+          revenue: s.revenue,
+        );
+      }
+      return s;
+    }).toList();
+    emit(OwnerManagementLoaded(updated));
+  }
+
+  Future<void> rejectOwner(String ownerId, {String? reason}) async {
+    final current = state;
+    if (current is! OwnerManagementLoaded) return;
+
+    await _ownerRepository.rejectOwner(ownerId, reason: reason);
+
+    final updated = current.owners.map((s) {
+      if (s.owner['id'].toString() == ownerId) {
+        return OwnerSummary(
+          owner: {...s.owner, 'status': 'rejected', 'rejection_reason': reason ?? 'Rejected by admin'},
+          locationsCount: s.locationsCount,
+          bookingsCount: s.bookingsCount,
+          revenue: s.revenue,
+        );
+      }
+      return s;
+    }).toList();
+    emit(OwnerManagementLoaded(updated));
+  }
 }

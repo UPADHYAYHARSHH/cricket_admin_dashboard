@@ -44,6 +44,34 @@ class LocationManagementCubit extends Cubit<LocationManagementState> {
     emit(LocationManagementLoaded(locations: updated, ownerNameById: current.ownerNameById));
   }
 
+  Future<void> approveLocation(String locationId) async {
+    final current = state;
+    if (current is! LocationManagementLoaded) return;
+
+    await _locationRepository.approveLocation(locationId);
+
+    final updated = current.locations
+        .map((l) => l['id'] == locationId
+            ? {...l, 'documents_verified': true, 'rejection_reason': null}
+            : l)
+        .toList();
+    emit(LocationManagementLoaded(locations: updated, ownerNameById: current.ownerNameById));
+  }
+
+  Future<void> rejectLocation(String locationId, {String? reason}) async {
+    final current = state;
+    if (current is! LocationManagementLoaded) return;
+
+    await _locationRepository.rejectLocation(locationId, reason: reason);
+
+    final updated = current.locations
+        .map((l) => l['id'] == locationId
+            ? {...l, 'documents_verified': false, 'rejection_reason': reason ?? 'Rejected by admin'}
+            : l)
+        .toList();
+    emit(LocationManagementLoaded(locations: updated, ownerNameById: current.ownerNameById));
+  }
+
   Future<List<Map<String, dynamic>>> fetchGroundsForLocation(String locationId) =>
       _groundRepository.getGroundsForLocation(locationId);
 
