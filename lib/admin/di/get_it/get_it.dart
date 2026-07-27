@@ -16,11 +16,12 @@ import 'package:cricket_admin_panel/admin/presentation/blocs/sports/sports_manag
 import 'package:cricket_admin_panel/admin/data/repositories/admin_notification_repository_impl.dart';
 import 'package:cricket_admin_panel/admin/domain/repositories/admin_notification_repository.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/notification/admin_notification_cubit.dart';
+import 'package:cricket_admin_panel/common/services/admin_supabase_client.dart';
 
 final getIt = GetIt.instance;
 
 void initAdminDi() {
-  final supabase = Supabase.instance.client;
+  final supabase = AdminSupabaseClient.client;
 
   getIt.registerLazySingleton<SupabaseClient>(() => supabase);
 
