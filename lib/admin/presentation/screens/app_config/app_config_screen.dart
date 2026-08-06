@@ -16,7 +16,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   final _platformFeeCtrl = TextEditingController();
   final _commissionRateCtrl = TextEditingController();
   bool _commissionIsPercentage = true;
-  bool _underMaintenance = false;
+  bool _ownerUnderMaintenance = false;
+  bool _userUnderMaintenance = false;
 
   final _androidMinVersionCtrl = TextEditingController();
   final _iosMinVersionCtrl = TextEditingController();
@@ -76,7 +77,10 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
             _iosStoreUrlCtrl.text = val;
             break;
           case 'owner_app_maintenance':
-            _underMaintenance = val == 'true' || val == '1';
+            _ownerUnderMaintenance = val == 'true' || val == '1';
+            break;
+          case 'user_app_maintenance':
+            _userUnderMaintenance = val == 'true' || val == '1';
             break;
         }
       }
@@ -138,7 +142,11 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
         }, onConflict: 'key'),
         client.from('app_config').upsert({
           'key': 'owner_app_maintenance',
-          'value': _underMaintenance.toString(),
+          'value': _ownerUnderMaintenance.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'user_app_maintenance',
+          'value': _userUnderMaintenance.toString(),
         }, onConflict: 'key'),
       ]);
       if (mounted) _showSnack('Configuration saved successfully.');
@@ -316,39 +324,79 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _ConfigCard(
-                    width: isDesktop ? 704 : double.infinity,
-                    icon: HugeIcons.strokeRoundedTools,
-                    iconColor: Colors.red.shade600,
-                    title: 'Owner App — Under Maintenance',
-                    description:
-                        'When enabled, a non-dismissible maintenance dialog is shown to all owners on the next app cold-start. Owners cannot use the app until this is turned off.',
-                    child: Row(
-                      children: [
-                        Switch(
-                          value: _underMaintenance,
-                          onChanged: (v) =>
-                              setState(() => _underMaintenance = v),
-                          activeThumbColor: AppColors.primaryDarkGreen,
-                        ),
-                        const SizedBox(width: 12),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            _underMaintenance
-                                ? 'Maintenance ON'
-                                : 'Maintenance OFF',
-                            key: ValueKey(_underMaintenance),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: _underMaintenance
-                                  ? Colors.red.shade600
-                                  : AppColors.primaryDarkGreen,
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    children: [
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedTools,
+                        iconColor: Colors.red.shade600,
+                        title: 'User App — Maintenance',
+                        description:
+                            'When enabled, a non-dismissible maintenance dialog is shown to all users on the next app cold-start. Users cannot book grounds.',
+                        child: Row(
+                          children: [
+                            Switch(
+                              value: _userUnderMaintenance,
+                              onChanged: (v) =>
+                                  setState(() => _userUnderMaintenance = v),
+                              activeThumbColor: AppColors.primaryDarkGreen,
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _userUnderMaintenance
+                                    ? 'Maintenance ON'
+                                    : 'Maintenance OFF',
+                                key: ValueKey(_userUnderMaintenance),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: _userUnderMaintenance
+                                      ? Colors.red.shade600
+                                      : AppColors.primaryDarkGreen,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedTools,
+                        iconColor: Colors.red.shade600,
+                        title: 'Owner App — Maintenance',
+                        description:
+                            'When enabled, a non-dismissible maintenance dialog is shown to all owners on the next app cold-start.',
+                        child: Row(
+                          children: [
+                            Switch(
+                              value: _ownerUnderMaintenance,
+                              onChanged: (v) =>
+                                  setState(() => _ownerUnderMaintenance = v),
+                              activeThumbColor: AppColors.primaryDarkGreen,
+                            ),
+                            const SizedBox(width: 12),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _ownerUnderMaintenance
+                                    ? 'Maintenance ON'
+                                    : 'Maintenance OFF',
+                                key: ValueKey(_ownerUnderMaintenance),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: _ownerUnderMaintenance
+                                      ? Colors.red.shade600
+                                      : AppColors.primaryDarkGreen,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 36),
                   Text(
