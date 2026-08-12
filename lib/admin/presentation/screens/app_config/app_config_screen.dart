@@ -17,11 +17,17 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   final _commissionRateCtrl = TextEditingController();
   bool _commissionIsPercentage = true;
   bool _underMaintenance = false;
+  bool _userUnderMaintenance = false;
 
   final _androidMinVersionCtrl = TextEditingController();
   final _iosMinVersionCtrl = TextEditingController();
   final _androidStoreUrlCtrl = TextEditingController();
   final _iosStoreUrlCtrl = TextEditingController();
+
+  final _userAndroidMinVersionCtrl = TextEditingController();
+  final _userIosMinVersionCtrl = TextEditingController();
+  final _userAndroidStoreUrlCtrl = TextEditingController();
+  final _userIosStoreUrlCtrl = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -40,6 +46,10 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     _iosMinVersionCtrl.dispose();
     _androidStoreUrlCtrl.dispose();
     _iosStoreUrlCtrl.dispose();
+    _userAndroidMinVersionCtrl.dispose();
+    _userIosMinVersionCtrl.dispose();
+    _userAndroidStoreUrlCtrl.dispose();
+    _userIosStoreUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -75,8 +85,23 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           case 'ios_store_url':
             _iosStoreUrlCtrl.text = val;
             break;
+          case 'user_android_min_version':
+            _userAndroidMinVersionCtrl.text = val;
+            break;
+          case 'user_ios_min_version':
+            _userIosMinVersionCtrl.text = val;
+            break;
+          case 'user_android_store_url':
+            _userAndroidStoreUrlCtrl.text = val;
+            break;
+          case 'user_ios_store_url':
+            _userIosStoreUrlCtrl.text = val;
+            break;
           case 'owner_app_maintenance':
             _underMaintenance = val == 'true' || val == '1';
+            break;
+          case 'user_app_maintenance':
+            _userUnderMaintenance = val == 'true' || val == '1';
             break;
         }
       }
@@ -137,8 +162,28 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           'value': _iosStoreUrlCtrl.text.trim(),
         }, onConflict: 'key'),
         client.from('app_config').upsert({
+          'key': 'user_android_min_version',
+          'value': _userAndroidMinVersionCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'user_ios_min_version',
+          'value': _userIosMinVersionCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'user_android_store_url',
+          'value': _userAndroidStoreUrlCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'user_ios_store_url',
+          'value': _userIosStoreUrlCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
           'key': 'owner_app_maintenance',
           'value': _underMaintenance.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'user_app_maintenance',
+          'value': _userUnderMaintenance.toString(),
         }, onConflict: 'key'),
       ]);
       if (mounted) _showSnack('Configuration saved successfully.');
@@ -316,43 +361,83 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _ConfigCard(
-                    width: isDesktop ? 704 : double.infinity,
-                    icon: HugeIcons.strokeRoundedTools,
-                    iconColor: Colors.red.shade600,
-                    title: 'Owner App — Under Maintenance',
-                    description:
-                        'When enabled, a non-dismissible maintenance dialog is shown to all owners on the next app cold-start. Owners cannot use the app until this is turned off.',
-                    child: Row(
-                      children: [
-                        Switch(
-                          value: _underMaintenance,
-                          onChanged: (v) =>
-                              setState(() => _underMaintenance = v),
-                          activeThumbColor: AppColors.primaryDarkGreen,
-                        ),
-                        const SizedBox(width: 12),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            _underMaintenance
-                                ? 'Maintenance ON'
-                                : 'Maintenance OFF',
-                            key: ValueKey(_underMaintenance),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: _underMaintenance
-                                  ? Colors.red.shade600
-                                  : AppColors.primaryDarkGreen,
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    children: [
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedTools,
+                        iconColor: Colors.red.shade600,
+                        title: 'Owner App — Under Maintenance',
+                        description:
+                            'When enabled, a non-dismissible maintenance dialog is shown to all owners on the next app cold-start. Owners cannot use the app until this is turned off.',
+                        child: Row(
+                          children: [
+                            Switch(
+                              value: _underMaintenance,
+                              onChanged: (v) =>
+                                  setState(() => _underMaintenance = v),
+                              activeThumbColor: AppColors.primaryDarkGreen,
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _underMaintenance
+                                    ? 'Maintenance ON'
+                                    : 'Maintenance OFF',
+                                key: ValueKey(_underMaintenance),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: _underMaintenance
+                                      ? Colors.red.shade600
+                                      : AppColors.primaryDarkGreen,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedTools,
+                        iconColor: Colors.red.shade600,
+                        title: 'User App — Under Maintenance',
+                        description:
+                            'When enabled, a non-dismissible maintenance dialog is shown to all users on the next app cold-start. Users cannot use the app until this is turned off.',
+                        child: Row(
+                          children: [
+                            Switch(
+                              value: _userUnderMaintenance,
+                              onChanged: (v) =>
+                                  setState(() => _userUnderMaintenance = v),
+                              activeThumbColor: AppColors.primaryDarkGreen,
+                            ),
+                            const SizedBox(width: 12),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _userUnderMaintenance
+                                    ? 'Maintenance ON'
+                                    : 'Maintenance OFF',
+                                key: ValueKey(_userUnderMaintenance),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: _userUnderMaintenance
+                                      ? Colors.red.shade600
+                                      : AppColors.primaryDarkGreen,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 36),
                   Text(
-                    'Force Update',
+                    'Owner App — Force Update',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -412,6 +497,76 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                             const SizedBox(height: 14),
                             _TextInput(
                               controller: _iosStoreUrlCtrl,
+                              hint: 'https://apps.apple.com/app/id...',
+                              label: 'App Store URL',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 36),
+                  Text(
+                    'User App — Force Update',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'If the user app version is below the minimum, a non-dismissible update dialog is shown.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    children: [
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedAndroid,
+                        iconColor: const Color(0xFF3DDC84),
+                        title: 'Android',
+                        description:
+                            'Minimum version required to run the user app on Android.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _TextInput(
+                              controller: _userAndroidMinVersionCtrl,
+                              hint: '1.0.0',
+                              label: 'Min Version',
+                            ),
+                            const SizedBox(height: 14),
+                            _TextInput(
+                              controller: _userAndroidStoreUrlCtrl,
+                              hint:
+                                  'https://play.google.com/store/apps/details?id=...',
+                              label: 'Play Store URL',
+                            ),
+                          ],
+                        ),
+                      ),
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedApple,
+                        iconColor: Colors.grey.shade700,
+                        title: 'iOS',
+                        description:
+                            'Minimum version required to run the user app on iOS.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _TextInput(
+                              controller: _userIosMinVersionCtrl,
+                              hint: '1.0.0',
+                              label: 'Min Version',
+                            ),
+                            const SizedBox(height: 14),
+                            _TextInput(
+                              controller: _userIosStoreUrlCtrl,
                               hint: 'https://apps.apple.com/app/id...',
                               label: 'App Store URL',
                             ),
