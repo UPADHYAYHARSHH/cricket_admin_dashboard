@@ -74,19 +74,14 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   }
 
   void _openApprovals() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => getIt<ApprovalsCubit>(),
-          child: const ApprovalsScreen(),
-        ),
-      ),
-    ).then((_) => _statsCubit.fetchStats());
+    setState(() {
+      _selectedIndex = 1;
+    });
   }
 
   List<Widget> get _screens => [
-        BlocProvider(create: (_) => getIt<AdminDashboardCubit>()..fetchStats(), child: const DashboardScreen()),
+        BlocProvider.value(value: _statsCubit, child: DashboardScreen(onOpenApprovals: _openApprovals)),
+        BlocProvider(create: (_) => getIt<ApprovalsCubit>(), child: const ApprovalsScreen()),
         BlocProvider(create: (_) => getIt<OwnerManagementCubit>(), child: const OwnerManagementScreen()),
         BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),
         BlocProvider(create: (_) => getIt<SportsManagementCubit>(), child: const SportsManagementScreen()),
@@ -112,10 +107,6 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
               Navigator.of(context).pop();
             }
           },
-          onApprovalsTap: () {
-            Navigator.of(context).pop();
-            _openApprovals();
-          },
           onLogout: _confirmLogout,
         )),
         body: Row(
@@ -124,12 +115,16 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
               _Sidebar(
                 selectedIndex: _selectedIndex,
                 onSelect: (index) => setState(() => _selectedIndex = index),
-                onApprovalsTap: _openApprovals,
                 onLogout: _confirmLogout,
               ),
               const VerticalDivider(width: 1, thickness: 1),
             ],
-            Expanded(child: _screens[_selectedIndex]),
+            Expanded(
+              child: IndexedStack(
+                index: _selectedIndex,
+                children: _screens,
+              ),
+            ),
           ],
         ),
       ),
@@ -140,13 +135,11 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 class _Sidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
-  final VoidCallback onApprovalsTap;
   final VoidCallback onLogout;
 
   const _Sidebar({
     required this.selectedIndex,
     required this.onSelect,
-    required this.onApprovalsTap,
     required this.onLogout,
   });
 
@@ -217,23 +210,23 @@ class _Sidebar extends StatelessWidget {
                     BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
                       builder: (context, state) {
                         final pending = state is AdminDashboardLoaded ? state.pendingApprovalsCount : 0;
-                        return _buildActionItem(
+                        return _buildNavItem(
                           context,
                           icon: HugeIcons.strokeRoundedLocationAdd01,
                           label: 'Approvals',
                           badge: pending > 0 ? pending : null,
-                          onTap: onApprovalsTap,
+                          index: 1,
                         );
                       },
                     ),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owner Verification', index: 1),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Location Verification', index: 2),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedCricketBat, label: 'Sports', index: 3),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 4),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedNotification03, label: 'Send Notification', index: 5),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedClock01, label: 'Notification History', index: 6),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owner Verification', index: 2),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Location Verification', index: 3),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedCricketBat, label: 'Sports', index: 4),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 5),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedNotification03, label: 'Send Notification', index: 6),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedClock01, label: 'Notification History', index: 7),
                     const Divider(indent: 16, endIndent: 16),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 7),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 8),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -265,7 +258,7 @@ class _Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(BuildContext context, {required dynamic icon, required String label, required int index}) {
+  Widget _buildNavItem(BuildContext context, {required dynamic icon, required String label, required int index, int? badge}) {
     final isSelected = selectedIndex == index;
     return InkWell(
       onTap: () => onSelect(index),
@@ -279,33 +272,12 @@ class _Sidebar extends StatelessWidget {
               color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.6),
             ),
             const SizedBox(width: 16),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.8),
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionItem(BuildContext context, {required dynamic icon, required String label, required VoidCallback onTap, int? badge}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Row(
-          children: [
-            HugeIcon(icon: icon, color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.6)),
-            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha:0.8),
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.8),
                     ),
               ),
             ),
@@ -320,6 +292,8 @@ class _Sidebar extends StatelessWidget {
       ),
     );
   }
+
+
 }
 
 class _SidebarStatRow extends StatelessWidget {

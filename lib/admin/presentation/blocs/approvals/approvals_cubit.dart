@@ -13,20 +13,30 @@ class ApprovalsCubit extends Cubit<ApprovalsState> {
     emit(ApprovalsLoading());
     try {
       final pendingOwners = await _ownerRepository.getPendingOwners();
+      final pendingOwnerIds = pendingOwners.map((o) => o['id'].toString()).toSet();
 
       final allLocations = await _locationRepository.getAllLocations();
       final locationsByOwner = <String, List<Map<String, dynamic>>>{};
+      final pendingLocations = <Map<String, dynamic>>[];
+
       for (final loc in allLocations) {
         final ownerId = loc['owner_id'].toString();
         if (!locationsByOwner.containsKey(ownerId)) {
           locationsByOwner[ownerId] = [];
         }
         locationsByOwner[ownerId]!.add(loc);
+
+        if (loc['documents_verified'] != true && 
+            loc['rejection_reason'] == null && 
+            !pendingOwnerIds.contains(ownerId)) {
+          pendingLocations.add(loc);
+        }
       }
 
       emit(ApprovalsLoaded(
         pendingOwners: pendingOwners,
         locationsByOwner: locationsByOwner,
+        pendingLocations: pendingLocations,
       ));
     } catch (e) {
       emit(ApprovalsError(e.toString()));
@@ -79,6 +89,38 @@ class ApprovalsCubit extends Cubit<ApprovalsState> {
         type: 'location_rejected',
       );
 
+      await fetchPending();
+    } catch (e) {
+      emit(ApprovalsError(e.toString()));
+    }
+  }
+
+  Future<void> approveLocation(String locationId, String ownerId) async {
+    try {
+      await _locationRepository.approveLocation(locationId);
+      await _ownerRepository.sendNotification(
+        userId: ownerId,
+        title: 'Location Approved',
+        message: 'A new location has been approved by the admin.',
+        type: 'location_approved',
+      );
+      await fetchPending();
+    } catch (e) {
+      emit(ApprovalsError(e.toString()));
+    }
+  }
+
+  Future<void> rejectLocation(String locationId, String ownerId, {String? reason}) async {
+    try {
+      await _locationRepository.rejectLocation(locationId, reason: reason);
+      await _ownerRepository.sendNotification(
+        userId: ownerId,
+        title: 'Location Rejected',
+        message: reason != null && reason.isNotEmpty
+            ? 'A location has been rejected. Reason: $reason'
+            : 'A location has been rejected by the admin.',
+        type: 'location_rejected',
+      );
       await fetchPending();
     } catch (e) {
       emit(ApprovalsError(e.toString()));

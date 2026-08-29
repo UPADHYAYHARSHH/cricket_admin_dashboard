@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'firebase_options.dart';
 import 'common/config/theme.dart';
 import 'common/services/admin_supabase_client.dart';
 import 'admin/di/get_it/get_it.dart';
@@ -9,6 +11,9 @@ import 'admin/presentation/screens/login/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   await dotenv.load(fileName: ".env");
 

@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../common/constants/app_colors.dart';
 import '../../../../common/services/admin_supabase_client.dart';
+import '../../../../common/services/firebase_remote_config_sync_service.dart';
 
 class AppConfigScreen extends StatefulWidget {
   const AppConfigScreen({super.key});
@@ -29,6 +30,9 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   final _userAndroidStoreUrlCtrl = TextEditingController();
   final _userIosStoreUrlCtrl = TextEditingController();
 
+  final _serviceAccountCtrl = TextEditingController();
+  final _firebaseTokenCtrl = TextEditingController();
+
   bool _loading = true;
   bool _saving = false;
 
@@ -50,6 +54,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     _userIosMinVersionCtrl.dispose();
     _userAndroidStoreUrlCtrl.dispose();
     _userIosStoreUrlCtrl.dispose();
+    _serviceAccountCtrl.dispose();
+    _firebaseTokenCtrl.dispose();
     super.dispose();
   }
 
@@ -103,7 +109,16 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           case 'user_app_maintenance':
             _userUnderMaintenance = val == 'true' || val == '1';
             break;
+          case 'firebase_service_account':
+            _serviceAccountCtrl.text = val;
+            break;
+          case 'firebase_token':
+            _firebaseTokenCtrl.text = val;
+            break;
         }
+      }
+      if (_serviceAccountCtrl.text.isEmpty) {
+        _serviceAccountCtrl.text = FirebaseRemoteConfigSyncService.defaultServiceAccountJson;
       }
     } catch (e) {
       if (mounted) _showSnack('Failed to load config: $e', isError: true);
@@ -185,10 +200,90 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           'key': 'user_app_maintenance',
           'value': _userUnderMaintenance.toString(),
         }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'firebase_service_account',
+          'value': _serviceAccountCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'firebase_token',
+          'value': _firebaseTokenCtrl.text.trim(),
+        }, onConflict: 'key'),
       ]);
-      if (mounted) _showSnack('Configuration saved successfully.');
+
+      // Publish directly to Firebase Remote Config REST API
+      final Map<String, String> remoteConfigParams = {
+        'platform_fee': platformFee.toString(),
+        'commission_rate': commissionRate.toString(),
+        'commission_is_percentage': _commissionIsPercentage.toString(),
+        'user_app_maintenance': _userUnderMaintenance.toString(),
+        'owner_app_maintenance': _underMaintenance.toString(),
+        'user_android_min_version': _userAndroidMinVersionCtrl.text.trim(),
+        'user_ios_min_version': _userIosMinVersionCtrl.text.trim(),
+        'user_android_store_url': _userAndroidStoreUrlCtrl.text.trim(),
+        'user_ios_store_url': _userIosStoreUrlCtrl.text.trim(),
+        'owner_android_min_version': _androidMinVersionCtrl.text.trim(),
+        'owner_ios_min_version': _iosMinVersionCtrl.text.trim(),
+        'owner_android_store_url': _androidStoreUrlCtrl.text.trim(),
+        'owner_ios_store_url': _iosStoreUrlCtrl.text.trim(),
+        'is_under_maintenance': _userUnderMaintenance.toString(),
+        'required_version': _userAndroidMinVersionCtrl.text.trim().isNotEmpty
+            ? _userAndroidMinVersionCtrl.text.trim()
+            : '1.0.0',
+      };
+
+      final syncResult = await FirebaseRemoteConfigSyncService.publishToFirebase(
+        parameters: remoteConfigParams,
+        serviceAccountJsonString: _serviceAccountCtrl.text.trim(),
+        accessToken: _firebaseTokenCtrl.text.trim(),
+      );
+
+      if (mounted) {
+        _showSnack(syncResult.message, isError: !syncResult.success);
+      }
     } catch (e) {
       if (mounted) _showSnack('Failed to save: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _publishToFirebase() async {
+    final platformFee = double.tryParse(_platformFeeCtrl.text.trim()) ?? 0.0;
+    final commissionRate = double.tryParse(_commissionRateCtrl.text.trim()) ?? 0.0;
+
+    setState(() => _saving = true);
+    try {
+      final Map<String, String> remoteConfigParams = {
+        'platform_fee': platformFee.toString(),
+        'commission_rate': commissionRate.toString(),
+        'commission_is_percentage': _commissionIsPercentage.toString(),
+        'user_app_maintenance': _userUnderMaintenance.toString(),
+        'owner_app_maintenance': _underMaintenance.toString(),
+        'user_android_min_version': _userAndroidMinVersionCtrl.text.trim(),
+        'user_ios_min_version': _userIosMinVersionCtrl.text.trim(),
+        'user_android_store_url': _userAndroidStoreUrlCtrl.text.trim(),
+        'user_ios_store_url': _userIosStoreUrlCtrl.text.trim(),
+        'owner_android_min_version': _androidMinVersionCtrl.text.trim(),
+        'owner_ios_min_version': _iosMinVersionCtrl.text.trim(),
+        'owner_android_store_url': _androidStoreUrlCtrl.text.trim(),
+        'owner_ios_store_url': _iosStoreUrlCtrl.text.trim(),
+        'is_under_maintenance': _userUnderMaintenance.toString(),
+        'required_version': _userAndroidMinVersionCtrl.text.trim().isNotEmpty
+            ? _userAndroidMinVersionCtrl.text.trim()
+            : '1.0.0',
+      };
+
+      final result = await FirebaseRemoteConfigSyncService.publishToFirebase(
+        parameters: remoteConfigParams,
+        serviceAccountJsonString: _serviceAccountCtrl.text.trim(),
+        accessToken: _firebaseTokenCtrl.text.trim(),
+      );
+
+      if (mounted) {
+        _showSnack(result.message, isError: !result.success);
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Publish Error: $e', isError: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -574,6 +669,138 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 36),
+                  Text(
+                    'Firebase Remote Config Sync',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Publish all configuration parameters directly to Firebase Remote Config (project: box-cricket-df427) to update User & Owner mobile apps in real-time.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_sync_rounded,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Firebase Project: box-cricket-df427',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Remote Config parameters synced: is_under_maintenance, required_version, platform_fee, commission_rate, user_app_maintenance, owner_app_maintenance, store URLs & min versions.',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.help_outline_rounded, size: 16, color: Colors.blue),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'How to get your Service Account JSON (One-Time Setup):',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '1. Open Firebase Console → Project Settings (⚙️) → Service Accounts tab.\n'
+                                '2. Click "Generate New Private Key" button to download your .json file.\n'
+                                '3. Copy the entire content of that .json file and paste it into the box below.\n'
+                                '4. Click "Publish All Variables" (It will be saved permanently).',
+                                style: TextStyle(fontSize: 11, color: Colors.blue.shade900, height: 1.4),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: _serviceAccountCtrl,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Firebase Service Account JSON',
+                            hintText: 'Paste your service account JSON key here (e.g. {"type": "service_account", "project_id": "box-cricket-df427", ...})',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _firebaseTokenCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'OAuth Access Token (Optional)',
+                            hintText: 'Bearer token if using custom token auth...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            FilledButton.icon(
+                              onPressed: (_loading || _saving) ? null : _publishToFirebase,
+                              icon: const Icon(Icons.publish_rounded, size: 18),
+                              label: const Text('Publish All Variables to Firebase Remote Config'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.primaryDarkGreen,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 40),
                   Container(

@@ -102,7 +102,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           }
 
           final loaded = state as ApprovalsLoaded;
-          if (loaded.pendingOwners.isEmpty) {
+          if (loaded.pendingOwners.isEmpty && loaded.pendingLocations.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -113,26 +113,72 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                     color: AppColors.primaryDarkGreen.withValues(alpha: 0.4),
                   ),
                   const SizedBox(height: 16),
-                  const Text('No pending owner approvals.'),
+                  const Text('No pending approvals.'),
                 ],
               ),
             );
           }
 
+          final itemCount = loaded.pendingOwners.length + loaded.pendingLocations.length;
+
           return ListView.builder(
             padding: EdgeInsets.all(isDesktop ? 32 : 16),
-            itemCount: loaded.pendingOwners.length,
+            itemCount: itemCount,
             itemBuilder: (context, index) {
-              final owner = loaded.pendingOwners[index];
-              final ownerId = owner['id'].toString();
-              final locations = loaded.locationsByOwner[ownerId] ?? [];
-              return _OwnerApprovalCard(
-                owner: owner,
-                locations: locations,
-                onApprove: () => _approve(ownerId),
-                onReject: () => _reject(ownerId),
-                onDocumentTap: _showDocumentPreview,
-              );
+              if (index < loaded.pendingOwners.length) {
+                final owner = loaded.pendingOwners[index];
+                final ownerId = owner['id'].toString();
+                final locations = loaded.locationsByOwner[ownerId] ?? [];
+                return _OwnerApprovalCard(
+                  owner: owner,
+                  locations: locations,
+                  onApprove: () => _approve(ownerId),
+                  onReject: () => _reject(ownerId),
+                  onDocumentTap: _showDocumentPreview,
+                );
+              } else {
+                final locIndex = index - loaded.pendingOwners.length;
+                final loc = loaded.pendingLocations[locIndex];
+                final locId = loc['id'].toString();
+                final ownerId = loc['owner_id'].toString();
+
+                return _LocationApprovalCard(
+                  location: loc,
+                  onApprove: () async {
+                    await context.read<ApprovalsCubit>().approveLocation(locId, ownerId);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location approved.')));
+                    }
+                  },
+                  onReject: () async {
+                    final controller = TextEditingController();
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Reject Location'),
+                        content: TextField(
+                          controller: controller,
+                          decoration: const InputDecoration(labelText: 'Reason (optional)', border: OutlineInputBorder()),
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true || !context.mounted) return;
+                    await context.read<ApprovalsCubit>().rejectLocation(locId, ownerId, reason: controller.text.trim());
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location rejected.')));
+                    }
+                  },
+                  onDocumentTap: _showDocumentPreview,
+                );
+              }
             },
           );
         },
@@ -176,13 +222,12 @@ class _OwnerApprovalCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Owner header
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryDarkGreen.withValues(alpha:0.1),
+                  color: AppColors.primaryDarkGreen.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const HugeIcon(
@@ -214,8 +259,6 @@ class _OwnerApprovalCard extends StatelessWidget {
               ),
             ],
           ),
-
-          // KYC Documents section
           const SizedBox(height: 20),
           Text(
             'KYC Documents',
@@ -242,8 +285,6 @@ class _OwnerApprovalCard extends StatelessWidget {
               ),
             ],
           ),
-
-          // Bank Details section
           if (accountName.isNotEmpty || accountNumber.isNotEmpty || ifscCode.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
@@ -254,24 +295,20 @@ class _OwnerApprovalCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha:0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (accountName.isNotEmpty)
-                    _infoRow('Account Holder', accountName),
+                  if (accountName.isNotEmpty) _infoRow('Account Holder', accountName),
                   if (accountNumber.isNotEmpty)
                     _infoRow('Account Number', '${accountNumber.substring(0, accountNumber.length > 4 ? accountNumber.length - 4 : 0)}****'),
-                  if (ifscCode.isNotEmpty)
-                    _infoRow('IFSC Code', ifscCode),
+                  if (ifscCode.isNotEmpty) _infoRow('IFSC Code', ifscCode),
                 ],
               ),
             ),
           ],
-
-          // Locations section
           if (locations.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
@@ -280,26 +317,24 @@ class _OwnerApprovalCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ...locations.map((loc) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${loc['address'] ?? 'Unnamed location'} • ${loc['city'] ?? ''}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${loc['address'] ?? 'Unnamed location'} • ${loc['city'] ?? ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      _locDocChip('Property Doc', loc['property_document_url'] != null),
+                      const SizedBox(width: 6),
+                      _locDocChip('NOC', loc['noc_url'] != null),
+                    ],
                   ),
-                  _locDocChip('Property Doc', loc['property_document_url'] != null),
-                  const SizedBox(width: 6),
-                  _locDocChip('NOC', loc['noc_url'] != null),
-                ],
-              ),
-            )),
+                )),
           ],
-
-          // Action buttons
           const SizedBox(height: 20),
           Row(
             children: [
@@ -346,7 +381,7 @@ class _OwnerApprovalCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: hasDoc ? AppColors.primaryDarkGreen.withValues(alpha:0.1) : Colors.grey.withValues(alpha:0.1),
+          color: hasDoc ? AppColors.primaryDarkGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -357,7 +392,7 @@ class _OwnerApprovalCard extends StatelessWidget {
             Text(label, style: TextStyle(fontSize: 12, color: hasDoc ? AppColors.primaryDarkGreen : Colors.grey)),
             if (hasDoc) ...[
               const SizedBox(width: 4),
-              Icon(Icons.open_in_new, size: 12, color: AppColors.primaryDarkGreen.withValues(alpha:0.6)),
+              Icon(Icons.open_in_new, size: 12, color: AppColors.primaryDarkGreen.withValues(alpha: 0.6)),
             ],
           ],
         ),
@@ -369,7 +404,7 @@ class _OwnerApprovalCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: present ? AppColors.primaryDarkGreen.withValues(alpha:0.1) : Colors.grey.withValues(alpha:0.1),
+        color: present ? AppColors.primaryDarkGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -386,21 +421,138 @@ class _OwnerApprovalCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _infoChip(IconData icon, String label) {
+class _LocationApprovalCard extends StatelessWidget {
+  final Map<String, dynamic> location;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+  final void Function(String url, String title) onDocumentTap;
+
+  const _LocationApprovalCard({
+    required this.location,
+    required this.onApprove,
+    required this.onReject,
+    required this.onDocumentTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 12, color: Colors.grey[600]),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDarkGreen.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedLocation01,
+                  color: AppColors.primaryDarkGreen,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      location['address'] as String? ?? 'New Location',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${location['city'] ?? ''} • ${location['state'] ?? ''}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Location Documents',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _docPreviewChip(
+                context,
+                label: 'Property Document',
+                url: location['property_document_url'] as String?,
+                icon: Icons.description_outlined,
+                onTap: location['property_document_url'] != null
+                    ? () => onDocumentTap(location['property_document_url'], 'Property Document')
+                    : null,
+              ),
+              _docPreviewChip(
+                context,
+                label: 'NOC',
+                url: location['noc_url'] as String?,
+                icon: Icons.verified_user_outlined,
+                onTap: location['noc_url'] != null ? () => onDocumentTap(location['noc_url'], 'NOC') : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryDarkGreen),
+                onPressed: onApprove,
+                child: const Text('Approve', style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                onPressed: onReject,
+                child: const Text('Reject'),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _docPreviewChip(BuildContext context, {required String label, String? url, required IconData icon, VoidCallback? onTap}) {
+    final hasDoc = url != null && url.isNotEmpty;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: hasDoc ? AppColors.primaryDarkGreen.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: hasDoc ? AppColors.primaryDarkGreen : Colors.grey),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(fontSize: 12, color: hasDoc ? AppColors.primaryDarkGreen : Colors.grey)),
+            if (hasDoc) ...[
+              const SizedBox(width: 4),
+              Icon(Icons.open_in_new, size: 12, color: AppColors.primaryDarkGreen.withValues(alpha: 0.6)),
+            ],
+          ],
+        ),
       ),
     );
   }

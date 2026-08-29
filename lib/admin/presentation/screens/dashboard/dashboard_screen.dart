@@ -4,12 +4,12 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../common/constants/app_colors.dart';
 import '../../blocs/dashboard/admin_dashboard_cubit.dart';
 import '../../blocs/dashboard/admin_dashboard_state.dart';
-import '../../../di/get_it/get_it.dart';
-import '../../blocs/approvals/approvals_cubit.dart';
-import '../approvals/approvals_screen.dart';
+
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onOpenApprovals;
+
+  const DashboardScreen({super.key, this.onOpenApprovals});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -23,15 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _openApprovals() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => getIt<ApprovalsCubit>(),
-          child: const ApprovalsScreen(),
-        ),
-      ),
-    );
+    widget.onOpenApprovals?.call();
   }
 
   @override

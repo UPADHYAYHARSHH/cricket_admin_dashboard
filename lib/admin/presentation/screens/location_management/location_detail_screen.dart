@@ -7,11 +7,13 @@ import '../../blocs/locations/location_management_cubit.dart';
 class LocationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> location;
   final String ownerName;
+  final VoidCallback? onBack;
 
   const LocationDetailScreen({
     super.key,
     required this.location,
     required this.ownerName,
+    this.onBack,
   });
 
   @override
@@ -79,6 +81,12 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          leading: widget.onBack != null
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: widget.onBack,
+                )
+              : null,
           title: Text(
             (widget.location['address'] as String?) ?? 'Location',
             style: Theme.of(

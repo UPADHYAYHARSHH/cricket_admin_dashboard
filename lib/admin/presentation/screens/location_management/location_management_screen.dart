@@ -14,6 +14,9 @@ class LocationManagementScreen extends StatefulWidget {
 }
 
 class _LocationManagementScreenState extends State<LocationManagementScreen> {
+  Map<String, dynamic>? _selectedLocation;
+  String? _selectedOwnerName;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +72,19 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_selectedLocation != null && _selectedOwnerName != null) {
+      return LocationDetailScreen(
+        location: _selectedLocation!,
+        ownerName: _selectedOwnerName!,
+        onBack: () {
+          setState(() {
+            _selectedLocation = null;
+            _selectedOwnerName = null;
+          });
+        },
+      );
+    }
+
     final isDesktop = MediaQuery.of(context).size.width >= 800;
     final cubit = context.read<LocationManagementCubit>();
 
@@ -199,15 +215,12 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
                                   label: const Text('Reject', style: TextStyle(color: Colors.red)),
                                 ),
                               TextButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => LocationDetailScreen(
-                                      location: location,
-                                      ownerName: ownerName,
-                                    ),
-                                  ),
-                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedLocation = location;
+                                    _selectedOwnerName = ownerName;
+                                  });
+                                },
                                 child: const Text('View Details'),
                               ),
                             ],
