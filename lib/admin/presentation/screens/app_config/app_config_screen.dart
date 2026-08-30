@@ -128,8 +128,16 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   }
 
   Future<void> _save() async {
-    final platformFee = double.tryParse(_platformFeeCtrl.text.trim());
-    final commissionRate = double.tryParse(_commissionRateCtrl.text.trim());
+    String stripNonNumeric(String s) => s.replaceAll(RegExp(r'[^0-9.]'), '');
+    
+    final pClean = stripNonNumeric(_platformFeeCtrl.text);
+    final cClean = stripNonNumeric(_commissionRateCtrl.text);
+    
+    final pText = pClean.isEmpty ? '0' : pClean;
+    final cText = cClean.isEmpty ? '0' : cClean;
+    
+    final platformFee = double.tryParse(pText);
+    final commissionRate = double.tryParse(cText);
 
     if (platformFee == null || commissionRate == null) {
       _showSnack('Please enter valid numbers for fee fields.', isError: true);
@@ -248,8 +256,12 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   }
 
   Future<void> _publishToFirebase() async {
-    final platformFee = double.tryParse(_platformFeeCtrl.text.trim()) ?? 0.0;
-    final commissionRate = double.tryParse(_commissionRateCtrl.text.trim()) ?? 0.0;
+    String stripNonNumeric(String s) => s.replaceAll(RegExp(r'[^0-9.]'), '');
+    final pClean = stripNonNumeric(_platformFeeCtrl.text);
+    final cClean = stripNonNumeric(_commissionRateCtrl.text);
+    
+    final platformFee = double.tryParse(pClean) ?? 0.0;
+    final commissionRate = double.tryParse(cClean) ?? 0.0;
 
     setState(() => _saving = true);
     try {
@@ -1047,6 +1059,10 @@ class _NumericInput extends StatelessWidget {
           prefixText: prefix,
           suffixText: suffix,
           hintText: hint,
+          hintStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+          ),
           filled: true,
           fillColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.04),
           contentPadding: const EdgeInsets.symmetric(

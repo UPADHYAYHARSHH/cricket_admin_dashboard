@@ -10,26 +10,38 @@ import 'admin/presentation/screens/login/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+    await dotenv.load(fileName: "app_config.env");
 
-  await dotenv.load(fileName: ".env");
+    await Supabase.initialize(
+      url: dotenv.env['SUPABASE_URL']!,
+      anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    );
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
+    AdminSupabaseClient.init(
+      dotenv.env['SUPABASE_URL']!,
+      dotenv.env['SUPABASE_SERVICE_ROLE_KEY']!,
+    );
 
-  AdminSupabaseClient.init(
-    dotenv.env['SUPABASE_URL']!,
-    dotenv.env['SUPABASE_SERVICE_ROLE_KEY']!,
-  );
+    initAdminDi();
 
-  initAdminDi();
-
-  runApp(const AdminPanelApp());
+    runApp(const AdminPanelApp());
+  } catch (e, stackTrace) {
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SingleChildScrollView(
+            child: Text('Error: $e\n$stackTrace', style: const TextStyle(color: Colors.red, fontSize: 16)),
+          ),
+        ),
+      ),
+    ));
+  }
 }
 
 class AdminPanelApp extends StatelessWidget {
