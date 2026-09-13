@@ -214,6 +214,22 @@ class _HistoryTab extends StatelessWidget {
 
   const _HistoryTab({required this.bookings, required this.isDesktop});
 
+  String _getStatusText(dynamic status) {
+    final s = (status ?? '').toString().toLowerCase();
+    if (s == 'approved') return 'AWAITING PAYMENT';
+    return s.toUpperCase();
+  }
+
+  Color _getStatusColor(dynamic status) {
+    final s = (status ?? '').toString().toLowerCase();
+    if (s == 'approved') return AppColors.primaryDarkGreen;
+    if (s == 'confirmed') return AppColors.primaryDarkGreen;
+    if (s == 'requested') return AppColors.accentOrange;
+    if (s == 'cancelled' || s == 'declined') return Colors.red;
+    return Colors.grey;
+  }
+
+
   @override
   Widget build(BuildContext context) {
     if (bookings.isEmpty) {
@@ -264,7 +280,24 @@ class _HistoryTab extends StatelessWidget {
                       '₹${((b['amount'] ?? b['total_amount'] ?? 0) as num).toInt()}',
                     ),
                   ),
-                  DataCell(Text((b['status'] ?? '').toString().toUpperCase())),
+                  DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(b['status']).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: _getStatusColor(b['status']).withOpacity(0.5)),
+                        ),
+                        child: Text(
+                          _getStatusText(b['status']),
+                          style: TextStyle(
+                            color: _getStatusColor(b['status']),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                   DataCell(
                     Icon(
                       b['checked_in'] == true
