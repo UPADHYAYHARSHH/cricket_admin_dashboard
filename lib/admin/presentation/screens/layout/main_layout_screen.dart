@@ -17,6 +17,7 @@ import '../location_management/location_management_screen.dart';
 import '../sports_management/sports_management_screen.dart';
 import '../notification_management/notification_send_screen.dart';
 import '../notification_management/notification_history_screen.dart';
+import '../payouts/admin_payout_screen.dart';
 import '../../blocs/sports/sports_management_cubit.dart';
 import '../../blocs/notification/admin_notification_cubit.dart';
 
@@ -89,6 +90,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         BlocProvider(create: (_) => getIt<AdminNotificationCubit>(), child: const NotificationSendScreen()),
         BlocProvider(create: (_) => getIt<AdminNotificationCubit>()..fetchNotifications(), child: const NotificationHistoryScreen()),
         const AppConfigScreen(),
+        const AdminPayoutScreen(),
       ];
 
   @override
@@ -227,6 +229,7 @@ class _Sidebar extends StatelessWidget {
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedClock01, label: 'Notification History', index: 7),
                     const Divider(indent: 16, endIndent: 16),
                     _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 8),
+                    _buildNavItem(context, icon: HugeIcons.strokeRoundedMoneyBag01, label: 'Payouts', index: 9),
                     const SizedBox(height: 8),
                   ],
                 ),
