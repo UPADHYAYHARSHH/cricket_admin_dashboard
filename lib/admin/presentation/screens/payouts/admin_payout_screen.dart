@@ -30,10 +30,26 @@ class _AdminPayoutScreenState extends State<AdminPayoutScreen> {
           .select('*, owner_wallets(owner_id, total_earnings, available_balance)')
           .eq('status', _filter)
           .order('created_at', ascending: false);
+          
+      final withdrawals = List<Map<String, dynamic>>.from(response);
+      
+      if (withdrawals.isNotEmpty) {
+        final ownerIds = withdrawals.map((w) => w['owner_id']).toSet().toList();
+        final ownersResponse = await _supabase
+            .from('owner_details')
+            .select('id, owner_name, business_name, phone')
+            .filter('id', 'in', ownerIds);
+            
+        final ownersMap = {for (var o in ownersResponse) o['id']: o};
+        
+        for (var w in withdrawals) {
+          w['owner_details'] = ownersMap[w['owner_id']];
+        }
+      }
       
       if (mounted) {
         setState(() {
-          _withdrawals = response as List<dynamic>;
+          _withdrawals = withdrawals;
           _isLoading = false;
         });
       }
@@ -119,11 +135,15 @@ class _AdminPayoutScreenState extends State<AdminPayoutScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Owner ID: ${w['owner_id']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        Text('Owner: ${w['owner_details']?['owner_name'] ?? 'Unknown'}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        if (w['owner_details']?['business_name'] != null)
+                                          Text('${w['owner_details']['business_name']} - ${w['owner_details']['phone']}', style: TextStyle(color: Colors.grey.shade600)),
+                                        const SizedBox(height: 8),
+                                        Text('Owner ID: ${w['owner_id']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                        const SizedBox(height: 8),
+                                        Text('Amount: ₹${w['amount']}', style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
                                         const SizedBox(height: 4),
-                                        Text('Amount: ?${w['amount']}', style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
-                                        const SizedBox(height: 4),
-                                        Text('Requested: ${w['created_at']}'),
+                                        Text('Requested: ${w['created_at'] != null ? DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(w['created_at']).toLocal()) : ''}', style: const TextStyle(fontSize: 12)),
                                       ],
                                     ),
                                   ),
