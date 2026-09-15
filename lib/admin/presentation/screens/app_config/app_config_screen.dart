@@ -20,6 +20,13 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   bool _underMaintenance = false;
   bool _userUnderMaintenance = false;
 
+  // Customer Booking Fees & Taxes
+  final _convenienceFeeCtrl = TextEditingController(text: '20');
+  bool _convenienceFeeIsFree = true;
+  final _gstRateCtrl = TextEditingController(text: '0');
+  bool _gstIsPercentage = true;
+  bool _gstIsFree = false;
+
   final _androidMinVersionCtrl = TextEditingController();
   final _iosMinVersionCtrl = TextEditingController();
   final _androidStoreUrlCtrl = TextEditingController();
@@ -46,6 +53,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   void dispose() {
     _platformFeeCtrl.dispose();
     _commissionRateCtrl.dispose();
+    _convenienceFeeCtrl.dispose();
+    _gstRateCtrl.dispose();
     _androidMinVersionCtrl.dispose();
     _iosMinVersionCtrl.dispose();
     _androidStoreUrlCtrl.dispose();
@@ -78,6 +87,21 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
             break;
           case 'commission_is_percentage':
             _commissionIsPercentage = val == 'true' || val == '1';
+            break;
+          case 'convenience_fee':
+            _convenienceFeeCtrl.text = val;
+            break;
+          case 'convenience_fee_is_free':
+            _convenienceFeeIsFree = val == 'true' || val == '1';
+            break;
+          case 'gst_rate':
+            _gstRateCtrl.text = val;
+            break;
+          case 'gst_is_percentage':
+            _gstIsPercentage = val == 'true' || val == '1';
+            break;
+          case 'gst_is_free':
+            _gstIsFree = val == 'true' || val == '1';
             break;
           case 'android_min_version':
             _androidMinVersionCtrl.text = val;
@@ -132,23 +156,33 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     
     final pClean = stripNonNumeric(_platformFeeCtrl.text);
     final cClean = stripNonNumeric(_commissionRateCtrl.text);
+    final convClean = stripNonNumeric(_convenienceFeeCtrl.text);
+    final gstClean = stripNonNumeric(_gstRateCtrl.text);
     
     final pText = pClean.isEmpty ? '0' : pClean;
     final cText = cClean.isEmpty ? '0' : cClean;
+    final convText = convClean.isEmpty ? '20' : convClean;
+    final gstText = gstClean.isEmpty ? '0' : gstClean;
     
     final platformFee = double.tryParse(pText);
     final commissionRate = double.tryParse(cText);
+    final convenienceFee = double.tryParse(convText) ?? 20.0;
+    final gstRate = double.tryParse(gstText) ?? 0.0;
 
     if (platformFee == null || commissionRate == null) {
       _showSnack('Please enter valid numbers for fee fields.', isError: true);
       return;
     }
-    if (platformFee < 0 || commissionRate < 0) {
+    if (platformFee < 0 || commissionRate < 0 || convenienceFee < 0 || gstRate < 0) {
       _showSnack('Fee values must be ≥ 0.', isError: true);
       return;
     }
     if (_commissionIsPercentage && commissionRate > 100) {
       _showSnack('Percentage commission cannot exceed 100%.', isError: true);
+      return;
+    }
+    if (_gstIsPercentage && gstRate > 100) {
+      _showSnack('Percentage GST cannot exceed 100%.', isError: true);
       return;
     }
 
@@ -167,6 +201,30 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
         client.from('app_config').upsert({
           'key': 'commission_is_percentage',
           'value': _commissionIsPercentage.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'convenience_fee',
+          'value': convenienceFee.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'convenience_fee_is_free',
+          'value': _convenienceFeeIsFree.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'platform_fee_is_free',
+          'value': _convenienceFeeIsFree.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'gst_rate',
+          'value': gstRate.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'gst_is_percentage',
+          'value': _gstIsPercentage.toString(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'gst_is_free',
+          'value': _gstIsFree.toString(),
         }, onConflict: 'key'),
         client.from('app_config').upsert({
           'key': 'android_min_version',
@@ -223,6 +281,12 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
         'platform_fee': platformFee.toString(),
         'commission_rate': commissionRate.toString(),
         'commission_is_percentage': _commissionIsPercentage.toString(),
+        'convenience_fee': convenienceFee.toString(),
+        'convenience_fee_is_free': _convenienceFeeIsFree.toString(),
+        'platform_fee_is_free': _convenienceFeeIsFree.toString(),
+        'gst_rate': gstRate.toString(),
+        'gst_is_percentage': _gstIsPercentage.toString(),
+        'gst_is_free': _gstIsFree.toString(),
         'user_app_maintenance': _userUnderMaintenance.toString(),
         'owner_app_maintenance': _underMaintenance.toString(),
         'user_android_min_version': _userAndroidMinVersionCtrl.text.trim(),
@@ -259,9 +323,13 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     String stripNonNumeric(String s) => s.replaceAll(RegExp(r'[^0-9.]'), '');
     final pClean = stripNonNumeric(_platformFeeCtrl.text);
     final cClean = stripNonNumeric(_commissionRateCtrl.text);
+    final convClean = stripNonNumeric(_convenienceFeeCtrl.text);
+    final gstClean = stripNonNumeric(_gstRateCtrl.text);
     
     final platformFee = double.tryParse(pClean) ?? 0.0;
     final commissionRate = double.tryParse(cClean) ?? 0.0;
+    final convenienceFee = double.tryParse(convClean.isEmpty ? '20' : convClean) ?? 20.0;
+    final gstRate = double.tryParse(gstClean.isEmpty ? '0' : gstClean) ?? 0.0;
 
     setState(() => _saving = true);
     try {
@@ -269,6 +337,12 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
         'platform_fee': platformFee.toString(),
         'commission_rate': commissionRate.toString(),
         'commission_is_percentage': _commissionIsPercentage.toString(),
+        'convenience_fee': convenienceFee.toString(),
+        'convenience_fee_is_free': _convenienceFeeIsFree.toString(),
+        'platform_fee_is_free': _convenienceFeeIsFree.toString(),
+        'gst_rate': gstRate.toString(),
+        'gst_is_percentage': _gstIsPercentage.toString(),
+        'gst_is_free': _gstIsFree.toString(),
         'user_app_maintenance': _userUnderMaintenance.toString(),
         'owner_app_maintenance': _underMaintenance.toString(),
         'user_android_min_version': _userAndroidMinVersionCtrl.text.trim(),
@@ -447,6 +521,116 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                               suffix: _commissionIsPercentage ? '%' : null,
                               hint: _commissionIsPercentage ? '0' : '0',
                               isDecimal: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedReceiptDollar,
+                        iconColor: Colors.blue.shade600,
+                        title: 'Platform Fee (User App)',
+                        description:
+                            'Platform fee shown on user booking summary. If "Mark as Free" is enabled, the fee is struck through and displayed as Free.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _NumericInput(
+                              controller: _convenienceFeeCtrl,
+                              prefix: '₹',
+                              hint: '20',
+                              isDecimal: true,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Switch(
+                                  value: _convenienceFeeIsFree,
+                                  onChanged: (v) =>
+                                      setState(() => _convenienceFeeIsFree = v),
+                                  activeThumbColor: AppColors.primaryDarkGreen,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _convenienceFeeIsFree
+                                        ? 'Free for Users (~₹${_convenienceFeeCtrl.text.isEmpty ? "20" : _convenienceFeeCtrl.text}~ Free)'
+                                        : 'Charge User ₹${_convenienceFeeCtrl.text.isEmpty ? "20" : _convenienceFeeCtrl.text}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: _convenienceFeeIsFree
+                                          ? AppColors.primaryDarkGreen
+                                          : theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      _ConfigCard(
+                        width: isDesktop ? 340 : double.infinity,
+                        icon: HugeIcons.strokeRoundedInvoice,
+                        iconColor: Colors.teal.shade600,
+                        title: 'GST (Taxes)',
+                        description:
+                            'Goods & Services Tax shown on the user booking breakdown.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.onSurface.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.all(3),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _TypeChip(
+                                    label: '% Percentage',
+                                    selected: _gstIsPercentage,
+                                    onTap: () => setState(() => _gstIsPercentage = true),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _TypeChip(
+                                    label: '₹ Flat Amount',
+                                    selected: !_gstIsPercentage,
+                                    onTap: () => setState(() => _gstIsPercentage = false),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _NumericInput(
+                              controller: _gstRateCtrl,
+                              prefix: _gstIsPercentage ? null : '₹',
+                              suffix: _gstIsPercentage ? '%' : null,
+                              hint: '0',
+                              isDecimal: true,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Switch(
+                                  value: _gstIsFree,
+                                  onChanged: (v) => setState(() => _gstIsFree = v),
+                                  activeThumbColor: AppColors.primaryDarkGreen,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _gstIsFree ? 'Tax Exempt (₹0)' : 'Apply Tax',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: _gstIsFree
+                                          ? AppColors.primaryDarkGreen
+                                          : theme.colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
