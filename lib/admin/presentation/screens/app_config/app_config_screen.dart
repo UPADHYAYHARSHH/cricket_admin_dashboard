@@ -362,6 +362,18 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
             : '1.0.0',
       };
 
+      final client = AdminSupabaseClient.client;
+      await Future.wait([
+        client.from('app_config').upsert({
+          'key': 'firebase_service_account',
+          'value': _serviceAccountCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'firebase_token',
+          'value': _firebaseTokenCtrl.text.trim(),
+        }, onConflict: 'key'),
+      ]);
+
       final result = await FirebaseRemoteConfigSyncService.publishToFirebase(
         parameters: remoteConfigParams,
         serviceAccountJsonString: _serviceAccountCtrl.text.trim(),

@@ -22,6 +22,13 @@ class FirebaseRemoteConfigSyncService {
           ? serviceAccountJsonString.trim()
           : defaultServiceAccountJson;
 
+      if (jsonToUse.isEmpty) {
+        return (
+          success: false,
+          message: 'Please paste your Firebase Service Account JSON. The field is currently empty!'
+        );
+      }
+
       if (token == null || token.isEmpty) {
         try {
           dynamic decoded = jsonDecode(jsonToUse);
