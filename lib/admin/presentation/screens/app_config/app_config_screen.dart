@@ -141,9 +141,7 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
             break;
         }
       }
-      if (_serviceAccountCtrl.text.isEmpty) {
-        _serviceAccountCtrl.text = FirebaseRemoteConfigSyncService.defaultServiceAccountJson;
-      }
+
     } catch (e) {
       if (mounted) _showSnack('Failed to load config: $e', isError: true);
     } finally {
