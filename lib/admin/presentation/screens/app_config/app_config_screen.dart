@@ -868,6 +868,7 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                       ),
                     ],
                   ),
+                  /*
                   const SizedBox(height: 36),
                   Text(
                     'Firebase Remote Config Sync',
@@ -1000,6 +1001,7 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                       ],
                     ),
                   ),
+                  */
                   const SizedBox(height: 40),
                   Container(
                     padding: const EdgeInsets.all(14),
