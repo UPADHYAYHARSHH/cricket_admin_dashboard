@@ -37,7 +37,7 @@ class _AdminPayoutScreenState extends State<AdminPayoutScreen> {
         final ownerIds = withdrawals.map((w) => w['owner_id']).toSet().toList();
         final ownersResponse = await _supabase
             .from('owner_details')
-            .select('id, owner_name, business_name, phone')
+            .select('id, owner_name, business_name, phone, kyc_config')
             .filter('id', 'in', ownerIds);
             
         final ownersMap = {for (var o in ownersResponse) o['id']: o};
@@ -74,8 +74,13 @@ class _AdminPayoutScreenState extends State<AdminPayoutScreen> {
 
       if (mounted) {
         Navigator.pop(context); // close loader
+        final data = res.data;
+        final msg = (data is Map
+            ? (data['message'] ?? data['error'] ?? 'Processed successfully')
+            : 'Processed successfully')
+          .toString();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(res.data['message'] ?? 'Processed successfully')),
+          SnackBar(content: Text(msg)),
         );
         _fetchWithdrawals();
       }
@@ -125,6 +130,15 @@ class _AdminPayoutScreenState extends State<AdminPayoutScreen> {
                         itemCount: _withdrawals.length,
                         itemBuilder: (context, index) {
                           final w = _withdrawals[index];
+                          final kyc = w['owner_details']?['kyc_config'];
+                          final kycMap = kyc is Map ? kyc : const {};
+                          final accNum = (kycMap['account_number'] ?? kycMap['acc_number'])?.toString() ?? '';
+                          final ifsc = (kycMap['ifsc_code'] ?? kycMap['ifsc'])?.toString() ?? '';
+                          final accName = (kycMap['account_name'])?.toString() ?? '';
+                          final hasPayoutDetails = accNum.isNotEmpty && ifsc.isNotEmpty;
+                          final maskedAcc = accNum.length > 4
+                              ? 'XXXX${accNum.substring(accNum.length - 4)}'
+                              : (accNum.isEmpty ? '—' : accNum);
                           return Card(
                             margin: const EdgeInsets.only(bottom: 16),
                             child: Padding(
@@ -144,12 +158,48 @@ class _AdminPayoutScreenState extends State<AdminPayoutScreen> {
                                         Text('Amount: ₹${w['amount']}', style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
                                         const SizedBox(height: 4),
                                         Text('Requested: ${w['created_at'] != null ? DateFormat('MMM d, yyyy h:mm a').format(DateTime.parse(w['created_at']).toLocal()) : ''}', style: const TextStyle(fontSize: 12)),
+                                        const SizedBox(height: 8),
+                                        // Payout destination (from owner's kyc_config)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: hasPayoutDetails ? Colors.green.shade50 : Colors.red.shade50,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: hasPayoutDetails ? Colors.green.shade200 : Colors.red.shade200,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                hasPayoutDetails ? Icons.account_balance_rounded : Icons.warning_amber_rounded,
+                                                size: 16,
+                                                color: hasPayoutDetails ? Colors.green.shade700 : Colors.red.shade700,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  hasPayoutDetails
+                                                      ? 'Pays to: ${accName.isNotEmpty ? '$accName • ' : ''}$maskedAcc • $ifsc'
+                                                      : 'No payout account on file — ask owner to add bank details before approving',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: hasPayoutDetails ? Colors.green.shade800 : Colors.red.shade800,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
                                   if (w['status'] == 'pending') ...[
                                     ElevatedButton(
-                                      onPressed: () => _processPayout(w['id'], 'approve'),
+                                      onPressed: hasPayoutDetails
+                                          ? () => _processPayout(w['id'], 'approve')
+                                          : null,
                                       style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                                       child: const Text('Approve & Pay', style: TextStyle(color: Colors.white)),
                                     ),
