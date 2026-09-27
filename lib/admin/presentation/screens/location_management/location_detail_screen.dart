@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart' show DateFormat;
-import '../../../../common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_breakpoints.dart';
+import 'package:cricket_admin_panel/common/utils/formatters.dart';
+import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
+import 'package:cricket_admin_panel/common/widgets/shimmer_placeholder.dart';
+import 'package:cricket_admin_panel/common/constants/app_colors.dart';
 import '../../blocs/locations/location_management_cubit.dart';
+import 'widgets/location_detail_widgets.dart';
 
+/// Grounds and booking history for a single location.
+///
+/// The data loading, the ground availability guard and
+/// `toggleGroundAvailable` are unchanged. What changed: `intl` and the
+/// deprecated `withOpacity` calls are gone, ids are read with `toString()`
+/// instead of a hard `as String` cast, the booking table has a phone layout,
+/// and each tab reports totals.
 class LocationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> location;
   final String ownerName;
@@ -22,12 +33,15 @@ class LocationDetailScreen extends StatefulWidget {
 
 class _LocationDetailScreenState extends State<LocationDetailScreen> {
   bool _loading = true;
+  String? _error;
   List<Map<String, dynamic>> _grounds = [];
   List<Map<String, dynamic>> _bookings = [];
 
   bool get _locationIsLive =>
       widget.location['is_active'] != false &&
       widget.location['documents_verified'] == true;
+
+  String get _locationId => widget.location['id']?.toString() ?? '';
 
   @override
   void initState() {
@@ -36,25 +50,40 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
   }
 
   Future<void> _load() async {
-    final cubit = context.read<LocationManagementCubit>();
-    final locationId = widget.location['id'] as String;
-    final results = await Future.wait([
-      cubit.fetchGroundsForLocation(locationId),
-      cubit.fetchBookingHistory(locationId),
-    ]);
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     setState(() {
-      _grounds = results[0];
-      _bookings = results[1];
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+
+    try {
+      final cubit = context.read<LocationManagementCubit>();
+      final results = await Future.wait([
+        cubit.fetchGroundsForLocation(_locationId),
+        cubit.fetchBookingHistory(_locationId),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _grounds = results[0];
+        _bookings = results[1];
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _toggleGround(String groundId, bool value) async {
     if (value && !_locationIsLive) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
+        SnackBar(
+          content: const Text(
             'Approve and activate the location before enabling its grounds.',
           ),
           backgroundColor: AppColors.accentOrange,
@@ -62,258 +91,225 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
       );
       return;
     }
+
+    if (groundId.isEmpty) return;
+
     await context.read<LocationManagementCubit>().toggleGroundAvailable(
-      groundId,
-      value,
-    );
+          groundId,
+          value,
+        );
+    if (!mounted) return;
     setState(() {
       _grounds = _grounds
-          .map((g) => g['id'] == groundId ? {...g, 'is_available': value} : g)
+          .map((g) => g['id']?.toString() == groundId
+              ? {...g, 'is_available': value}
+              : g)
           .toList();
     });
   }
 
+  int get _availableGrounds =>
+      _grounds.where((g) => g['is_available'] != false).length;
+
+  int get _bookingRevenue => _bookings.fold<int>(
+        0,
+        (sum, b) => sum + asInt(b['amount'] ?? b['total_amount']),
+      );
+
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final theme = Theme.of(context);
+    final isVerified = widget.location['documents_verified'] == true;
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          leading: widget.onBack != null
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: widget.onBack,
-                )
-              : null,
-          title: Text(
-            (widget.location['address'] as String?) ?? 'Location',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Back to locations',
+            onPressed: widget.onBack ?? () => Navigator.of(context).maybePop(),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                (widget.location['address'] as String?)?.trim().isNotEmpty == true
+                    ? (widget.location['address'] as String).trim()
+                    : 'Location',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                widget.ownerName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Grounds'),
-              Tab(text: 'Booking History'),
+              Tab(text: 'Bookings'),
             ],
           ),
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  if (!_locationIsLive)
-                    Container(
-                      width: double.infinity,
-                      color: AppColors.accentOrange.withOpacity(0.1),
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        'This location is ${widget.location['documents_verified'] == true ? 'disabled' : 'not yet approved'}. '
-                        'Its grounds stay hidden from players until it is approved and active.',
-                        style: const TextStyle(
-                          color: AppColors.accentOrange,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _GroundsTab(
-                          grounds: _grounds,
-                          isDesktop: isDesktop,
-                          onToggle: _toggleGround,
-                        ),
-                        _HistoryTab(bookings: _bookings, isDesktop: isDesktop),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+        body: _buildBody(context, isVerified),
       ),
     );
   }
-}
 
-class _GroundsTab extends StatelessWidget {
-  final List<Map<String, dynamic>> grounds;
-  final bool isDesktop;
-  final void Function(String groundId, bool value) onToggle;
-
-  const _GroundsTab({
-    required this.grounds,
-    required this.isDesktop,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (grounds.isEmpty) {
-      return const Center(
-        child: Text('No grounds added at this location yet.'),
+  Widget _buildBody(BuildContext context, bool isVerified) {
+    if (_loading) {
+      return const ShimmerPage(
+        children: [
+          ShimmerTileGrid(count: 3),
+          SizedBox(height: 14),
+          ShimmerCardList(count: 3, lineCount: 3, avatar: false),
+        ],
       );
     }
-    return ListView.separated(
-      padding: EdgeInsets.all(isDesktop ? 32 : 16),
-      itemCount: grounds.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final ground = grounds[index];
-        final isAvailable = ground['is_available'] != false;
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Row(
+
+    if (_error != null) {
+      return AdminStateView(
+        icon: Icons.cloud_off_rounded,
+        title: 'Could not load this location',
+        message: _error,
+        actionLabel: 'Retry',
+        onAction: _load,
+        tone: AdminStateTone.error,
+      );
+    }
+
+    return Column(
+      children: [
+        if (!_locationIsLive) LocationVisibilityBanner(isVerified: isVerified),
+        Expanded(
+          child: TabBarView(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ground['name'] as String? ?? 'Ground',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${ground['category'] ?? ''} • ₹${ground['price_per_hour'] ?? 0}/hr',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                isAvailable ? 'Available' : 'Disabled',
-                style: TextStyle(
-                  color: isAvailable ? AppColors.primaryDarkGreen : Colors.grey,
-                ),
-              ),
-              Switch(
-                value: isAvailable,
-                activeThumbColor: AppColors.primaryDarkGreen,
-                onChanged: (value) => onToggle(ground['id'] as String, value),
-              ),
+              _buildGroundsTab(context),
+              _buildBookingsTab(context),
             ],
           ),
-        );
-      },
+        ),
+      ],
     );
   }
-}
 
-class _HistoryTab extends StatelessWidget {
-  final List<Map<String, dynamic>> bookings;
-  final bool isDesktop;
-
-  const _HistoryTab({required this.bookings, required this.isDesktop});
-
-  String _getStatusText(dynamic status) {
-    final s = (status ?? '').toString().toLowerCase();
-    if (s == 'approved') return 'AWAITING PAYMENT';
-    return s.toUpperCase();
-  }
-
-  Color _getStatusColor(dynamic status) {
-    final s = (status ?? '').toString().toLowerCase();
-    if (s == 'approved') return AppColors.primaryDarkGreen;
-    if (s == 'confirmed') return AppColors.primaryDarkGreen;
-    if (s == 'requested') return AppColors.accentOrange;
-    if (s == 'cancelled' || s == 'declined') return Colors.red;
-    return Colors.grey;
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    if (bookings.isEmpty) {
-      return const Center(child: Text('No bookings at this location yet.'));
-    }
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isDesktop ? 32 : 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerColor),
+  Widget _buildGroundsTab(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          AdminBreakpoints.pagePadding(context),
+          14,
+          AdminBreakpoints.pagePadding(context),
+          24,
         ),
-        width: double.infinity,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingTextStyle: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            columns: const [
-              DataColumn(label: Text('Date')),
-              DataColumn(label: Text('Ground')),
-              DataColumn(label: Text('Amount')),
-              DataColumn(label: Text('Status')),
-              DataColumn(label: Text('Checked In')),
+        children: [
+          LocationDetailSummary(
+            tiles: [
+              (
+                label: 'Total grounds',
+                value: '${_grounds.length}',
+                icon: Icons.sports_cricket_rounded,
+                color: AppColors.primaryDarkGreen
+              ),
+              (
+                label: 'Bookable',
+                value: '$_availableGrounds',
+                icon: Icons.check_circle_outline_rounded,
+                color: AppColors.primaryLightGreen
+              ),
+              (
+                label: 'Disabled',
+                value: '${_grounds.length - _availableGrounds}',
+                icon: Icons.pause_circle_outline_rounded,
+                color: Theme.of(context).colorScheme.onSurfaceVariant
+              ),
             ],
-            rows: bookings.map((b) {
-              final ground = b['grounds'] as Map<String, dynamic>?;
-              DateTime? date;
-              try {
-                date = DateTime.parse(
-                  (b['booking_date'] ?? b['created_at']) as String,
-                ).toLocal();
-              } catch (_) {}
-              return DataRow(
-                cells: [
-                  DataCell(
-                    Text(
-                      date != null
-                          ? DateFormat('d MMM yyyy, h:mm a').format(date)
-                          : '-',
-                    ),
-                  ),
-                  DataCell(Text(ground?['name'] as String? ?? 'Ground')),
-                  DataCell(
-                    Text(
-                      '₹${((b['amount'] ?? b['total_amount'] ?? 0) as num).toInt()}',
-                    ),
-                  ),
-                  DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(b['status']).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: _getStatusColor(b['status']).withOpacity(0.5)),
-                        ),
-                        child: Text(
-                          _getStatusText(b['status']),
-                          style: TextStyle(
-                            color: _getStatusColor(b['status']),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                  DataCell(
-                    Icon(
-                      b['checked_in'] == true
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: b['checked_in'] == true
-                          ? AppColors.primaryDarkGreen
-                          : Colors.grey,
-                      size: 18,
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
           ),
+          const SizedBox(height: 14),
+          if (_grounds.isEmpty)
+            AdminSurface(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: LocationTabEmpty(
+                icon: Icons.sports_cricket_outlined,
+                title: 'No grounds yet',
+                message: 'The owner has not added any grounds at this venue.',
+              ),
+            )
+          else
+            for (final ground in _grounds) ...[
+              GroundCard(ground: ground, onToggle: _toggleGround),
+              const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingsTab(BuildContext context) {
+    final useTable = AdminBreakpoints.hasTableSpace(context);
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          AdminBreakpoints.pagePadding(context),
+          14,
+          AdminBreakpoints.pagePadding(context),
+          24,
         ),
+        children: [
+          LocationDetailSummary(
+            tiles: [
+              (
+                label: 'Bookings',
+                value: '${_bookings.length}',
+                icon: Icons.event_available_rounded,
+                color: AppColors.primaryDarkGreen
+              ),
+              (
+                label: 'Booking value',
+                value: '₹${formatInr(_bookingRevenue)}',
+                icon: Icons.payments_rounded,
+                color: AppColors.goldenYellow
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_bookings.isEmpty)
+            AdminSurface(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: LocationTabEmpty(
+                icon: Icons.event_busy_outlined,
+                title: 'No bookings yet',
+                message: 'Bookings made at this venue will be listed here.',
+              ),
+            )
+          else if (useTable)
+            LocationBookingTable(bookings: _bookings)
+          else
+            Column(
+              children: [
+                for (final booking in _bookings) ...[
+                  LocationBookingCard(booking: booking),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            ),
+        ],
       ),
     );
   }
