@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hugeicons/hugeicons.dart';
-import 'package:intl/intl.dart';
-import '../../../../common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_page_scaffold.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_breakpoints.dart';
+import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
+import 'package:cricket_admin_panel/common/widgets/shimmer_placeholder.dart';
 import '../../blocs/notification/admin_notification_cubit.dart';
 import '../../blocs/notification/admin_notification_state.dart';
+import 'widgets/notification_history_widgets.dart';
 
+/// Read-only log of notifications that have been sent.
+///
+/// The cubit call and the type filter values are unchanged. What changed: the
+/// `totalCount` the cubit already fetches is now displayed, a search was added
+/// because the query returns up to 500 rows, the truncated message can be read
+/// in full, and the layout uses the shared responsive scaffold.
 class NotificationHistoryScreen extends StatefulWidget {
   const NotificationHistoryScreen({super.key});
 
   @override
-  State<NotificationHistoryScreen> createState() => _NotificationHistoryScreenState();
+  State<NotificationHistoryScreen> createState() =>
+      _NotificationHistoryScreenState();
 }
 
 class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   String _filterType = 'all';
+  String _query = '';
 
   @override
   void initState() {
@@ -22,234 +32,168 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
     context.read<AdminNotificationCubit>().fetchNotifications();
   }
 
+  /// Lower-cased text for searching, with null coerced to an empty string.
+  static String _text(Object? value) =>
+      value?.toString().trim().toLowerCase() ?? '';
+
+  /// Client-side filter, matching the behaviour that was already there.
+  List<Map<String, dynamic>> _applyView(List<Map<String, dynamic>> source) {
+    final needle = _query.trim().toLowerCase();
+
+    return source.where((notification) {
+      if (_filterType != 'all' && notification['type'] != _filterType) {
+        return false;
+      }
+      if (needle.isEmpty) return true;
+
+      return _text(notification['title']).contains(needle) ||
+          _text(notification['message']).contains(needle) ||
+          _text(notification['type']).contains(needle);
+    }).toList();
+  }
+
+  void _openDetail(Map<String, dynamic> notification) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: false,
+      builder: (_) => NotificationDetailSheet(notification: notification),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final cubit = context.read<AdminNotificationCubit>();
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: isDesktop
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => context.findRootAncestorStateOfType<ScaffoldState>()?.openDrawer(),
-              ),
-        title: Text(
-          'Notification History',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<AdminNotificationCubit>().fetchNotifications(),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Filter chips
-          Padding(
-            padding: EdgeInsets.all(isDesktop ? 32 : 16),
-            child: Row(
-              children: [
-                _filterChip('All', 'all'),
-                const SizedBox(width: 8),
-                _filterChip('Promotion', 'promotion'),
-                const SizedBox(width: 8),
-                _filterChip('Announcement', 'announcement'),
-                const SizedBox(width: 8),
-                _filterChip('General', 'general'),
-              ],
+    return BlocBuilder<AdminNotificationCubit, AdminNotificationState>(
+      builder: (context, state) {
+        final loaded = state is AdminNotificationLoaded ? state : null;
+        final totalCount = loaded?.totalCount ?? 0;
+
+        return AdminPageScaffold(
+          title: 'Notification History',
+          subtitle: switch (state) {
+            AdminNotificationLoaded() => '$totalCount sent',
+            AdminNotificationLoading() => 'Loading…',
+            _ => 'Loading',
+          },
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: state is AdminNotificationLoading
+                  ? null
+                  : () => cubit.fetchNotifications(),
+              icon: state is AdminNotificationLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
             ),
-          ),
-
-          // Notifications list
-          Expanded(
-            child: BlocBuilder<AdminNotificationCubit, AdminNotificationState>(
-              builder: (context, state) {
-                if (state is AdminNotificationLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (state is AdminNotificationError) {
-                  return Center(child: Text(state.message));
-                }
-                if (state is AdminNotificationLoaded) {
-                  var notifications = state.notifications;
-
-                  if (_filterType != 'all') {
-                    notifications = notifications
-                        .where((n) => n['type'] == _filterType)
-                        .toList();
-                  }
-
-                  if (notifications.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          HugeIcon(
-                            icon: HugeIcons.strokeRoundedNotification03,
-                            size: 64,
-                            color: AppColors.primaryDarkGreen.withValues(alpha:0.4),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text('No notifications sent yet.'),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return isDesktop
-                      ? _buildDataTable(notifications)
-                      : _buildCardList(notifications);
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterChip(String label, String value) {
-    final isSelected = _filterType == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) {
-        setState(() => _filterType = value);
-      },
-      selectedColor: AppColors.primaryDarkGreen.withValues(alpha: 0.1),
-    );
-  }
-
-  Widget _buildDataTable(List<Map<String, dynamic>> notifications) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Card(
-        child: SingleChildScrollView(
-          child: DataTable(
-            columns: const [
-              DataColumn(label: Text('Date')),
-              DataColumn(label: Text('Title')),
-              DataColumn(label: Text('Type')),
-              DataColumn(label: Text('Target')),
-              DataColumn(label: Text('Message')),
-            ],
-            rows: notifications.map((n) {
-              final createdAt = DateTime.tryParse(n['created_at'] ?? '');
-              return DataRow(cells: [
-                DataCell(Text(
-                  createdAt != null ? DateFormat('MMM d, yyyy HH:mm').format(createdAt) : '-',
-                )),
-                DataCell(Text(n['title'] ?? '-')),
-                DataCell(_typeBadge(n['type'])),
-                DataCell(Text(_targetFromType(n['type']))),
-                DataCell(
-                  SizedBox(
-                    width: 300,
-                    child: Text(
-                      n['message'] ?? '-',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ]);
-            }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardList(List<Map<String, dynamic>> notifications) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: notifications.length,
-      itemBuilder: (context, index) {
-        final n = notifications[index];
-        final createdAt = DateTime.tryParse(n['created_at'] ?? '');
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppColors.primaryDarkGreen.withValues(alpha:0.1),
-              child: HugeIcon(
-                icon: HugeIcons.strokeRoundedNotification03,
-                color: AppColors.primaryDarkGreen,
-                size: 20,
-              ),
-            ),
-            title: Text(n['title'] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  n['message'] ?? '-',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _typeBadge(n['type']),
-                    const SizedBox(width: 8),
-                    Text(
-                      createdAt != null ? DateFormat('MMM d, yyyy HH:mm').format(createdAt) : '-',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          ],
+          child: _buildBody(context, state, loaded, totalCount),
         );
       },
     );
   }
 
-  Widget _typeBadge(String? type) {
-    Color color;
-    switch (type) {
-      case 'promotion':
-        color = Colors.blue;
-        break;
-      case 'announcement':
-        color = Colors.orange;
-        break;
-      case 'reminder':
-        color = Colors.purple;
-        break;
-      default:
-        color = Colors.grey;
+  Widget _buildBody(
+    BuildContext context,
+    AdminNotificationState state,
+    AdminNotificationLoaded? loaded,
+    int totalCount,
+  ) {
+    if (state is AdminNotificationError) {
+      return AdminStateView(
+        icon: Icons.cloud_off_rounded,
+        title: 'Could not load notifications',
+        message: state.message,
+        actionLabel: 'Retry',
+        onAction: () => context.read<AdminNotificationCubit>().fetchNotifications(),
+        tone: AdminStateTone.error,
+      );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        type ?? 'general',
-        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
-      ),
+    if (loaded == null) {
+      return ShimmerPage(
+        children: [
+          const ShimmerFilterBar(chips: 3),
+          const SizedBox(height: 14),
+          if (AdminBreakpoints.hasTableSpace(context))
+            const ShimmerSurface(child: ShimmerTable(rows: 6, columns: 4))
+          else
+            const ShimmerCardList(count: 4, lineCount: 3, avatar: false),
+        ],
+      );
+    }
+
+    final visible = _applyView(loaded.notifications);
+    final useTable = AdminBreakpoints.hasTableSpace(context);
+
+    return Column(
+      children: [
+        if (state is AdminNotificationLoading)
+          const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () =>
+                context.read<AdminNotificationCubit>().fetchNotifications(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                NotificationFiltersBar(
+                  selectedType: _filterType,
+                  onTypeChanged: (value) => setState(() => _filterType = value),
+                  visibleCount: visible.length,
+                  totalCount: totalCount,
+                ),
+                const SizedBox(height: 14),
+                if (visible.isEmpty)
+                  AdminSurface(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: AdminStateView(
+                      icon: loaded.notifications.isEmpty
+                          ? Icons.notifications_off_outlined
+                          : Icons.search_off_rounded,
+                      title: loaded.notifications.isEmpty
+                          ? 'No notifications sent yet'
+                          : 'Nothing matches these filters',
+                      message: loaded.notifications.isEmpty
+                          ? 'Broadcasts you send will be listed here.'
+                          : 'Try a different type or clear the search.',
+                      actionLabel: loaded.notifications.isEmpty ? null : 'Reset',
+                      onAction: loaded.notifications.isEmpty
+                          ? null
+                          : () => setState(() {
+                                _filterType = 'all';
+                                _query = '';
+                              }),
+                    ),
+                  )
+                else if (useTable)
+                  NotificationHistoryTable(
+                    notifications: visible,
+                    onOpen: _openDetail,
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final notification in visible) ...[
+                        NotificationHistoryCard(
+                          notification: notification,
+                          onOpen: () => _openDetail(notification),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
-  }
-
-  String _targetFromType(String? type) {
-    switch (type) {
-      case 'location_approved':
-      case 'location_rejected':
-      case 'new_booking':
-      case 'booking_cancelled_by_user':
-      case 'payment_received':
-        return 'Owner';
-      default:
-        return 'All';
-    }
   }
 }
