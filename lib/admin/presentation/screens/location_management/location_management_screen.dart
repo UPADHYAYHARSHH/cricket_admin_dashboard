@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_page_scaffold.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_breakpoints.dart';
+import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
+import 'package:cricket_admin_panel/common/widgets/shimmer_placeholder.dart';
 import '../../blocs/locations/location_management_cubit.dart';
 import '../../blocs/locations/location_management_state.dart';
 import 'location_detail_screen.dart';
+import 'widgets/location_row.dart';
+import 'widgets/location_views.dart';
 
+/// List of ground locations with verification controls.
+///
+/// The cubit calls, their arguments and the visibility toggle are unchanged.
+/// What changed: search and status filters, a count summary, the rejection
+/// reason is now surfaced, a card layout for phones, and the detail screen is
+/// pushed onto the navigator so the system and browser back buttons work.
 class LocationManagementScreen extends StatefulWidget {
   const LocationManagementScreen({super.key});
 
@@ -14,8 +25,10 @@ class LocationManagementScreen extends StatefulWidget {
 }
 
 class _LocationManagementScreenState extends State<LocationManagementScreen> {
-  Map<String, dynamic>? _selectedLocation;
-  String? _selectedOwnerName;
+  final TextEditingController _searchController = TextEditingController();
+
+  String _query = '';
+  LocationFilter _filter = LocationFilter.all;
 
   @override
   void initState() {
@@ -23,218 +36,294 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> {
     context.read<LocationManagementCubit>().fetchLocations();
   }
 
-  ({String label, Color color}) _statusOf(Map<String, dynamic> location) {
-    if (location['documents_verified'] == true) {
-      return (label: 'Approved', color: AppColors.primaryDarkGreen);
-    }
-    if (location['rejection_reason'] != null) {
-      return (label: 'Rejected', color: Colors.red);
-    }
-    return (label: 'Pending', color: AppColors.accentOrange);
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  void _showRejectDialog(String locationId) {
+  void _setQuery(String value) {
+    if (_query == value) return;
+    setState(() => _query = value);
+  }
+
+  void _clearFilters() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _filter = LocationFilter.all;
+    });
+  }
+
+  static List<LocationRow> _toRows(LocationManagementLoaded loaded) {
+    return loaded.locations.map((location) {
+      return LocationRow(
+        location: location,
+        ownerName: loaded.ownerNameById[location['owner_id'].toString()] ??
+            'Owner',
+        status: LocationVerificationStatus.of(location),
+      );
+    }).toList();
+  }
+
+  static bool _matches(LocationRow row, String query) {
+    if (query.isEmpty) return true;
+    final needle = query.toLowerCase();
+
+    bool hit(Object? value) =>
+        value != null && value.toString().toLowerCase().contains(needle);
+
+    return hit(row.address) ||
+        hit(row.city) ||
+        hit(row.state) ||
+        hit(row.ownerName);
+  }
+
+  static bool _passesFilter(LocationRow row, LocationFilter filter) {
+    return switch (filter) {
+      LocationFilter.all => true,
+      LocationFilter.pending =>
+        row.status == LocationVerificationStatus.pending,
+      LocationFilter.approved =>
+        row.status == LocationVerificationStatus.approved,
+      LocationFilter.rejected =>
+        row.status == LocationVerificationStatus.rejected,
+      LocationFilter.inactive => !row.isActive,
+    };
+  }
+
+  Map<LocationFilter, int> _counts(List<LocationRow> rows) {
+    final counts = <LocationFilter, int>{};
+    for (final filter in LocationFilter.values) {
+      counts[filter] = 0;
+    }
+    for (final row in rows) {
+      for (final filter in LocationFilter.values) {
+        if (_passesFilter(row, filter)) {
+          counts[filter] = (counts[filter] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }
+
+  void _showRejectDialog(LocationRow row) {
     final reasonController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reject Location'),
+        title: const Text('Reject location'),
         content: TextField(
           controller: reasonController,
+          autofocus: true,
+          maxLines: 3,
           decoration: const InputDecoration(
             hintText: 'Reason for rejection (optional)',
+            helperText: 'Shown to the owner in their app',
             border: OutlineInputBorder(),
           ),
-          maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () {
               context.read<LocationManagementCubit>().rejectLocation(
-                locationId,
+                row.id,
                 reason: reasonController.text.trim().isNotEmpty
                     ? reasonController.text.trim()
                     : null,
               );
               Navigator.pop(context);
             },
-            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+            child: const Text('Reject'),
           ),
         ],
+      ),
+    ).whenComplete(reasonController.dispose);
+  }
+
+  /// Pushed as a route so the system and browser back buttons return here
+  /// instead of doing nothing. Previously the detail replaced this screen's
+  /// Scaffold in place, which left no navigator entry to pop.
+  void _openDetail(LocationRow row) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LocationDetailScreen(
+          location: row.location,
+          ownerName: row.ownerName,
+          onBack: () => Navigator.of(context).maybePop(),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_selectedLocation != null && _selectedOwnerName != null) {
-      return LocationDetailScreen(
-        location: _selectedLocation!,
-        ownerName: _selectedOwnerName!,
-        onBack: () {
-          setState(() {
-            _selectedLocation = null;
-            _selectedOwnerName = null;
-          });
-        },
+    final cubit = context.read<LocationManagementCubit>();
+
+    return BlocBuilder<LocationManagementCubit, LocationManagementState>(
+      builder: (context, state) {
+        final loaded = state is LocationManagementLoaded ? state : null;
+        final rows = loaded == null ? <LocationRow>[] : _toRows(loaded);
+
+        return AdminPageScaffold(
+          title: 'Location Verification',
+          subtitle: switch (state) {
+            LocationManagementLoaded() =>
+              '${rows.length} location${rows.length == 1 ? '' : 's'}',
+            LocationManagementLoading() => 'Loading…',
+            _ => 'Loading',
+          },
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: state is LocationManagementLoading
+                  ? null
+                  : () => cubit.fetchLocations(),
+              icon: state is LocationManagementLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
+            ),
+          ],
+          child: _buildBody(context, state, rows),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    LocationManagementState state,
+    List<LocationRow> rows,
+  ) {
+    final cubit = context.read<LocationManagementCubit>();
+
+    if (state is LocationManagementError) {
+      return AdminStateView(
+        icon: Icons.cloud_off_rounded,
+        title: 'Could not load locations',
+        message: state.message,
+        actionLabel: 'Retry',
+        onAction: () => cubit.fetchLocations(),
+        tone: AdminStateTone.error,
       );
     }
 
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
-    final cubit = context.read<LocationManagementCubit>();
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: isDesktop
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => context
-                    .findRootAncestorStateOfType<ScaffoldState>()
-                    ?.openDrawer(),
-              ),
-        title: Text(
-          'Location Verification',
-          style: Theme.of(
-            context,
-          ).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: cubit.fetchLocations,
+    if (state is! LocationManagementLoaded) {
+      return ShimmerPage(
+        children: [
+          const ShimmerTileGrid(
+            count: 4,
+            columnsAtExpanded: 4,
+            columnsAtMedium: 2,
+            columnsAtCompact: 2,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(height: 14),
+          ShimmerFilterBar(
+            chips: 4,
+            stacked: AdminBreakpoints.isCompact(context),
+          ),
+          const SizedBox(height: 14),
+          if (AdminBreakpoints.hasTableSpace(context))
+            const ShimmerSurface(child: ShimmerTable(rows: 8, columns: 6))
+          else
+            const ShimmerCardList(count: 4, lineCount: 3, footerActions: true),
         ],
-      ),
-      body: BlocBuilder<LocationManagementCubit, LocationManagementState>(
-        builder: (context, state) {
-          if (state is LocationManagementLoading ||
-              state is LocationManagementInitial) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state is LocationManagementError) {
-            return Center(child: Text(state.message));
-          }
+      );
+    }
 
-          final loaded = state as LocationManagementLoaded;
-          if (loaded.locations.isEmpty) {
-            return const Center(child: Text('No locations found.'));
-          }
+    if (rows.isEmpty) {
+      return const AdminStateView(
+        icon: Icons.location_off_outlined,
+        title: 'No locations yet',
+        message: 'Venues added by owners will appear here for verification.',
+      );
+    }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(isDesktop ? 32 : 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).dividerColor),
-              ),
-              width: double.infinity,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingTextStyle: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                  columns: const [
-                    DataColumn(label: Text('Location')),
-                    DataColumn(label: Text('Owner')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Active')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows: loaded.locations.map((location) {
-                    final status = _statusOf(location);
-                    final ownerName =
-                        loaded.ownerNameById[location['owner_id'].toString()] ??
-                        'Owner';
-                    final isActive = location['is_active'] != false;
-                    return DataRow(
-                      cells: [
-                        DataCell(
-                          Text(
-                            (location['address'] as String?)?.isNotEmpty == true
-                                ? location['address'] as String
-                                : 'Unnamed',
-                          ),
-                        ),
-                        DataCell(Text(ownerName)),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: status.color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              status.label.toUpperCase(),
-                              style: TextStyle(
-                                color: status.color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Switch(
-                            value: isActive,
-                            activeThumbColor: AppColors.primaryDarkGreen,
-                            onChanged: (value) => cubit.toggleLocationActive(
-                              location['id'] as String,
-                              value,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (status.label == 'Pending' || status.label == 'Rejected')
-                                TextButton.icon(
-                                  onPressed: () => cubit.approveLocation(
-                                    location['id'] as String,
-                                  ),
-                                  icon: const Icon(Icons.check_circle, color: AppColors.primaryDarkGreen, size: 18),
-                                  label: const Text('Approve', style: TextStyle(color: AppColors.primaryDarkGreen)),
-                                ),
-                              if (status.label == 'Pending' || status.label == 'Approved')
-                                TextButton.icon(
-                                  onPressed: () => _showRejectDialog(
-                                    location['id'] as String,
-                                  ),
-                                  icon: const Icon(Icons.cancel, color: Colors.red, size: 18),
-                                  label: const Text('Reject', style: TextStyle(color: Colors.red)),
-                                ),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedLocation = location;
-                                    _selectedOwnerName = ownerName;
-                                  });
-                                },
-                                child: const Text('View Details'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+    final visible = rows
+        .where((row) => _passesFilter(row, _filter))
+        .where((row) => _matches(row, _query))
+        .toList();
+
+    final useTable = AdminBreakpoints.hasTableSpace(context);
+
+    return Column(
+      children: [
+        if (state is LocationManagementLoading)
+          const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => cubit.fetchLocations(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                LocationSummary(rows: rows),
+                const SizedBox(height: 14),
+                LocationFiltersBar(
+                  controller: _searchController,
+                  query: _query,
+                  onQueryChanged: _setQuery,
+                  filter: _filter,
+                  onFilterChanged: (value) => setState(() => _filter = value),
+                  counts: _counts(rows),
+                  visibleCount: visible.length,
+                  totalCount: rows.length,
+                  onClear: _clearFilters,
                 ),
-              ),
+                const SizedBox(height: 14),
+                if (visible.isEmpty)
+                  AdminSurface(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: AdminStateView(
+                      icon: Icons.search_off_rounded,
+                      title: 'No locations match your filters',
+                      message: 'Try a different search term or clear the filter.',
+                      actionLabel: 'Clear filters',
+                      actionIcon: Icons.filter_alt_off_rounded,
+                      onAction: _clearFilters,
+                    ),
+                  )
+                else if (useTable)
+                  LocationTable(
+                    rows: visible,
+                    onApprove: (row) => cubit.approveLocation(row.id),
+                    onReject: _showRejectDialog,
+                    onToggleActive: (row, value) =>
+                        cubit.toggleLocationActive(row.id, value),
+                    onViewDetails: _openDetail,
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final row in visible) ...[
+                        LocationCard(
+                          row: row,
+                          onApprove: () => cubit.approveLocation(row.id),
+                          onReject: () => _showRejectDialog(row),
+                          onToggleActive: (value) =>
+                              cubit.toggleLocationActive(row.id, value),
+                          onViewDetails: () => _openDetail(row),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hugeicons/hugeicons.dart';
-import '../../../../common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_page_scaffold.dart';
+import 'package:cricket_admin_panel/common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
 import '../../blocs/notification/admin_notification_cubit.dart';
 import '../../blocs/notification/admin_notification_state.dart';
+import 'widgets/notification_composer.dart';
 
+/// Compose and broadcast a push notification.
+///
+/// The cubit call, its arguments, the four notification types, the three
+/// audience values and both validators are unchanged. What changed is that the
+/// live preview now actually updates as you type, the audience is confirmed
+/// before an irreversible broadcast, and the form uses the shared responsive
+/// scaffold.
 class NotificationSendScreen extends StatefulWidget {
   const NotificationSendScreen({super.key});
 
@@ -13,11 +23,40 @@ class NotificationSendScreen extends StatefulWidget {
 }
 
 class _NotificationSendScreenState extends State<NotificationSendScreen> {
+  static const List<({String value, String label})> _audiences = [
+    (value: 'all', label: 'All Users'),
+    (value: 'owners', label: 'All Owners'),
+    (value: 'users', label: 'All Users Only'),
+  ];
+
+  static const List<({String value, String label})> _types = [
+    (value: 'promotion', label: 'Promotion'),
+    (value: 'announcement', label: 'Announcement'),
+    (value: 'reminder', label: 'Reminder'),
+    (value: 'general', label: 'General'),
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
+
   String _selectedTarget = 'all';
   String _selectedType = 'promotion';
+
+  /// Merged listenable so only the preview rebuilds while typing, rather than
+  /// the whole form on every keystroke.
+  late final Listenable _composerChanges;
+
+  /// Push notifications are truncated by the OS, so the counters are advisory.
+  static const int _titleSoftLimit = 40;
+  static const int _messageSoftLimit = 120;
+
+  @override
+  void initState() {
+    super.initState();
+    _composerChanges =
+        Listenable.merge([_titleController, _messageController]);
+  }
 
   @override
   void dispose() {
@@ -26,211 +65,274 @@ class _NotificationSendScreenState extends State<NotificationSendScreen> {
     super.dispose();
   }
 
-  void _send() {
-    if (!_formKey.currentState!.validate()) return;
+  String get _audienceLabel => _audiences
+      .firstWhere((option) => option.value == _selectedTarget)
+      .label;
+
+  String get _typeLabel =>
+      _types.firstWhere((option) => option.value == _selectedType).label;
+
+  /// A broadcast cannot be recalled, so the audience is confirmed explicitly.
+  Future<void> _send() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final title = _titleController.text.trim();
+    final message = _messageController.text.trim();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Send notification'),
+        content: Text(
+          'Send this $_typeLabel to $_audienceLabel?\n\n'
+          '"$title"\n\n'
+          'This cannot be recalled once delivered.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryDarkGreen,
+            ),
+            child: const Text('Send now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
 
     context.read<AdminNotificationCubit>().sendNotification(
-      title: _titleController.text.trim(),
-      message: _messageController.text.trim(),
-      type: _selectedType,
-      target: _selectedTarget,
-    );
+          title: title,
+          message: message,
+          type: _selectedType,
+          target: _selectedTarget,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: isDesktop
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => context.findRootAncestorStateOfType<ScaffoldState>()?.openDrawer(),
-              ),
-        title: Text(
-          'Send Notification',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: BlocListener<AdminNotificationCubit, AdminNotificationState>(
+    return AdminPageScaffold(
+      title: 'Send Notification',
+      subtitle: '$_audienceLabel · $_typeLabel',
+      child: BlocListener<AdminNotificationCubit, AdminNotificationState>(
         listener: (context, state) {
           if (state is AdminNotificationSent) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.green),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.primaryDarkGreen,
+              ),
             );
             _titleController.clear();
             _messageController.clear();
           } else if (state is AdminNotificationError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: theme.colorScheme.error,
+              ),
             );
           }
         },
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(isDesktop ? 32 : 16),
           child: Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 600),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Notification Details',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 24),
+                    AdminSurface(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // --- Audience ---------------------------------
+                          const _FieldLabel('Send to'),
+                          const SizedBox(height: 8),
+                          AudienceSelector(
+                            options: _audiences,
+                            selected: _selectedTarget,
+                            onChanged: (value) =>
+                                setState(() => _selectedTarget = value),
+                          ),
+                          const SizedBox(height: 20),
 
-                            // Target selection
-                            Text('Send To', style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 8),
-                            SegmentedButton<String>(
-                              segments: const [
-                                ButtonSegment(value: 'all', label: Text('All Users')),
-                                ButtonSegment(value: 'owners', label: Text('All Owners')),
-                                ButtonSegment(value: 'users', label: Text('All Users Only')),
-                              ],
-                              selected: {_selectedTarget},
-                              onSelectionChanged: (value) {
-                                setState(() => _selectedTarget = value.first);
-                              },
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Type selection
-                            Text('Notification Type', style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedType,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          // --- Type ------------------------------------
+                          const _FieldLabel('Notification type'),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            initialValue: _selectedType,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
-                              items: const [
-                                DropdownMenuItem(value: 'promotion', child: Text('Promotion')),
-                                DropdownMenuItem(value: 'announcement', child: Text('Announcement')),
-                                DropdownMenuItem(value: 'reminder', child: Text('Reminder')),
-                                DropdownMenuItem(value: 'general', child: Text('General')),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() => _selectedType = value);
-                                }
-                              },
                             ),
-                            const SizedBox(height: 20),
-
-                            // Title
-                            TextFormField(
-                              controller: _titleController,
-                              decoration: const InputDecoration(
-                                labelText: 'Title',
-                                border: OutlineInputBorder(),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Title is required';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Message
-                            TextFormField(
-                              controller: _messageController,
-                              decoration: const InputDecoration(
-                                labelText: 'Message',
-                                border: OutlineInputBorder(),
-                                alignLabelWithHint: true,
-                              ),
-                              maxLines: 4,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Message is required';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Preview
-                            if (_titleController.text.isNotEmpty || _messageController.text.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha:0.3),
-                                  borderRadius: BorderRadius.circular(12),
+                            items: [
+                              for (final type in _types)
+                                DropdownMenuItem(
+                                  value: type.value,
+                                  child: Text(type.label),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Preview', style: Theme.of(context).textTheme.titleSmall),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _titleController.text.isNotEmpty ? _titleController.text : 'Title',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _messageController.text.isNotEmpty ? _messageController.text : 'Message',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            const SizedBox(height: 24),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => _selectedType = value);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 20),
 
-                            // Send button
-                            BlocBuilder<AdminNotificationCubit, AdminNotificationState>(
-                              builder: (context, state) {
-                                return SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primaryDarkGreen,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                    ),
-                                    onPressed: state is AdminNotificationSending ? null : _send,
-                                    icon: state is AdminNotificationSending
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const HugeIcon(
-                                            icon: HugeIcons.strokeRoundedNotification03,
-                                            color: Colors.white,
-                                          ),
-                                    label: Text(
-                                      state is AdminNotificationSending ? 'Sending...' : 'Send Notification',
-                                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                          // --- Title -----------------------------------
+                          const _FieldLabel('Title'),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _titleController,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              hintText: 'Short headline',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Title is required';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          ListenableBuilder(
+                            listenable: _titleController,
+                            builder: (context, _) => FieldCounter(
+                              text: _titleController.text,
+                              suggestedLimit: _titleSoftLimit,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // --- Message --------------------------------
+                          const _FieldLabel('Message'),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _messageController,
+                            maxLines: 5,
+                            decoration: const InputDecoration(
+                              hintText: 'What should everyone know?',
+                              border: OutlineInputBorder(),
+                              alignLabelWithHint: true,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Message is required';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          ListenableBuilder(
+                            listenable: _messageController,
+                            builder: (context, _) => FieldCounter(
+                              text: _messageController.text,
+                              suggestedLimit: _messageSoftLimit,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // --- Live preview ---------------------------
+                          ListenableBuilder(
+                            listenable: _composerChanges,
+                            builder: (context, _) => NotificationPreview(
+                              changes: _composerChanges,
+                              title: _titleController.text,
+                              message: _messageController.text,
+                              audienceLabel: _audienceLabel,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+
+                          // --- Send ------------------------------------
+                          BlocBuilder<AdminNotificationCubit,
+                              AdminNotificationState>(
+                            builder: (context, state) {
+                              final isSending =
+                                  state is AdminNotificationSending;
+
+                              return SizedBox(
+                                height: 50,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        AppColors.primaryDarkGreen,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                                  onPressed: isSending ? null : _send,
+                                  icon: isSending
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const HugeIcon(
+                                          icon: HugeIcons
+                                              .strokeRoundedNotification03,
+                                          color: Colors.white,
+                                        ),
+                                  label: Text(
+                                    isSending
+                                        ? 'Sending…'
+                                        : 'Send to $_audienceLabel',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        letterSpacing: 0.6,
+        fontWeight: FontWeight.w700,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
