@@ -53,6 +53,17 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   final _serviceAccountCtrl = TextEditingController();
   final _firebaseTokenCtrl = TextEditingController();
 
+  // Cancellation & Coin Recovery Policy
+  final _tier1HoursCtrl = TextEditingController(text: '24');
+  final _tier1PercentCtrl = TextEditingController(text: '100');
+  final _tier2HoursCtrl = TextEditingController(text: '12');
+  final _tier2PercentCtrl = TextEditingController(text: '75');
+  final _tier3HoursCtrl = TextEditingController(text: '3');
+  final _tier3PercentCtrl = TextEditingController(text: '50');
+  final _tier4PercentCtrl = TextEditingController(text: '25');
+  final _coinExpiryDaysCtrl = TextEditingController(text: '60');
+  final _maxCoinRedemptionCtrl = TextEditingController(text: '40');
+
   bool _loading = true;
   bool _saving = false;
   bool _publishing = false;
@@ -79,6 +90,16 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     _userIosStoreUrlCtrl.dispose();
     _serviceAccountCtrl.dispose();
     _firebaseTokenCtrl.dispose();
+
+    _tier1HoursCtrl.dispose();
+    _tier1PercentCtrl.dispose();
+    _tier2HoursCtrl.dispose();
+    _tier2PercentCtrl.dispose();
+    _tier3HoursCtrl.dispose();
+    _tier3PercentCtrl.dispose();
+    _tier4PercentCtrl.dispose();
+    _coinExpiryDaysCtrl.dispose();
+    _maxCoinRedemptionCtrl.dispose();
     super.dispose();
   }
 
@@ -155,6 +176,33 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           case 'firebase_token':
             _firebaseTokenCtrl.text = val;
             break;
+          case 'cancellation_tier1_hours':
+            _tier1HoursCtrl.text = val;
+            break;
+          case 'cancellation_tier1_percent':
+            _tier1PercentCtrl.text = val;
+            break;
+          case 'cancellation_tier2_hours':
+            _tier2HoursCtrl.text = val;
+            break;
+          case 'cancellation_tier2_percent':
+            _tier2PercentCtrl.text = val;
+            break;
+          case 'cancellation_tier3_hours':
+            _tier3HoursCtrl.text = val;
+            break;
+          case 'cancellation_tier3_percent':
+            _tier3PercentCtrl.text = val;
+            break;
+          case 'cancellation_tier4_percent':
+            _tier4PercentCtrl.text = val;
+            break;
+          case 'coin_expiry_days':
+            _coinExpiryDaysCtrl.text = val;
+            break;
+          case 'max_coin_redemption_percent':
+            _maxCoinRedemptionCtrl.text = val;
+            break;
         }
       }
     } catch (e) {
@@ -201,6 +249,15 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
       'is_under_maintenance': _userUnderMaintenance.toString(),
       'required_version':
           userAndroidVersion.isNotEmpty ? userAndroidVersion : '1.0.0',
+      'cancellation_tier1_hours': _tier1HoursCtrl.text.trim().isEmpty ? '24' : _tier1HoursCtrl.text.trim(),
+      'cancellation_tier1_percent': _tier1PercentCtrl.text.trim().isEmpty ? '100' : _tier1PercentCtrl.text.trim(),
+      'cancellation_tier2_hours': _tier2HoursCtrl.text.trim().isEmpty ? '12' : _tier2HoursCtrl.text.trim(),
+      'cancellation_tier2_percent': _tier2PercentCtrl.text.trim().isEmpty ? '75' : _tier2PercentCtrl.text.trim(),
+      'cancellation_tier3_hours': _tier3HoursCtrl.text.trim().isEmpty ? '3' : _tier3HoursCtrl.text.trim(),
+      'cancellation_tier3_percent': _tier3PercentCtrl.text.trim().isEmpty ? '50' : _tier3PercentCtrl.text.trim(),
+      'cancellation_tier4_percent': _tier4PercentCtrl.text.trim().isEmpty ? '25' : _tier4PercentCtrl.text.trim(),
+      'coin_expiry_days': _coinExpiryDaysCtrl.text.trim().isEmpty ? '60' : _coinExpiryDaysCtrl.text.trim(),
+      'max_coin_redemption_percent': _maxCoinRedemptionCtrl.text.trim().isEmpty ? '40' : _maxCoinRedemptionCtrl.text.trim(),
     };
   }
 
@@ -361,6 +418,42 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
               'key': 'firebase_token',
               'value': _firebaseTokenCtrl.text.trim(),
             }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier1_hours',
+          'value': _tier1HoursCtrl.text.trim().isEmpty ? '24' : _tier1HoursCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier1_percent',
+          'value': _tier1PercentCtrl.text.trim().isEmpty ? '100' : _tier1PercentCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier2_hours',
+          'value': _tier2HoursCtrl.text.trim().isEmpty ? '12' : _tier2HoursCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier2_percent',
+          'value': _tier2PercentCtrl.text.trim().isEmpty ? '75' : _tier2PercentCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier3_hours',
+          'value': _tier3HoursCtrl.text.trim().isEmpty ? '3' : _tier3HoursCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier3_percent',
+          'value': _tier3PercentCtrl.text.trim().isEmpty ? '50' : _tier3PercentCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'cancellation_tier4_percent',
+          'value': _tier4PercentCtrl.text.trim().isEmpty ? '25' : _tier4PercentCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'coin_expiry_days',
+          'value': _coinExpiryDaysCtrl.text.trim().isEmpty ? '60' : _coinExpiryDaysCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'max_coin_redemption_percent',
+          'value': _maxCoinRedemptionCtrl.text.trim().isEmpty ? '40' : _maxCoinRedemptionCtrl.text.trim(),
+        }, onConflict: 'key'),
       ]);
 
       final syncResult = await FirebaseRemoteConfigSyncService.publishToFirebase(
@@ -512,6 +605,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                 children: [
                   _sectionFees(context),
                   const SizedBox(height: 26),
+                  _sectionCancellationPolicy(context),
+                  const SizedBox(height: 26),
                   _sectionAppStatus(context),
                   const SizedBox(height: 26),
                   _sectionOwnerForceUpdate(context),
@@ -649,6 +744,169 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     title: const Text('GST is free'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionCancellationPolicy(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const ConfigSectionHeader(
+          title: 'Cancellation & Coin Recovery Policy',
+          description:
+              'Dynamic cancellation rules based on time remaining before slot start. '
+              'Any changes saved here automatically synchronize in realtime to User and Owner apps.',
+        ),
+        ConfigCardGrid(
+          cards: [
+            // --- Tier 1 (Early) ---
+            ConfigCard(
+              icon: Icons.schedule_rounded,
+              iconColor: AppColors.primaryDarkGreen,
+              title: 'Tier 1: Early Cancellation',
+              description: 'Applies when cancelled well in advance of the booking start time.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Cutoff Hours (More than)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier1HoursCtrl,
+                    hint: '24',
+                    prefix: '≥ Hours',
+                    isDecimal: true,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Coin Recovery %', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier1PercentCtrl,
+                    hint: '100',
+                    prefix: '%',
+                    isDecimal: true,
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Tier 2 (Medium) ---
+            ConfigCard(
+              icon: Icons.timer_outlined,
+              iconColor: Colors.blue.shade600,
+              title: 'Tier 2: Medium Cancellation',
+              description: 'Applies between Tier 2 and Tier 1 cutoff hours.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Cutoff Hours (Between Tier 2 and 1)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier2HoursCtrl,
+                    hint: '12',
+                    prefix: '≥ Hours',
+                    isDecimal: true,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Coin Recovery %', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier2PercentCtrl,
+                    hint: '75',
+                    prefix: '%',
+                    isDecimal: true,
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Tier 3 (Late) ---
+            ConfigCard(
+              icon: Icons.alarm_on_rounded,
+              iconColor: AppColors.accentOrange,
+              title: 'Tier 3: Late Cancellation',
+              description: 'Applies between Tier 3 and Tier 2 cutoff hours.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Cutoff Hours (Between Tier 3 and 2)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier3HoursCtrl,
+                    hint: '3',
+                    prefix: '≥ Hours',
+                    isDecimal: true,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Coin Recovery %', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier3PercentCtrl,
+                    hint: '50',
+                    prefix: '%',
+                    isDecimal: true,
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Tier 4 (Last-Minute) ---
+            ConfigCard(
+              icon: Icons.running_with_errors_rounded,
+              iconColor: Colors.red.shade600,
+              title: 'Tier 4: Last-Minute (< Tier 3)',
+              description: 'Applies when cancelled with less than Tier 3 cutoff hours remaining.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Coin Recovery % for < Tier 3 Hours', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _tier4PercentCtrl,
+                    hint: '25',
+                    prefix: '%',
+                    isDecimal: true,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No-show players receive 0% refund and full payout goes to the owner.',
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Coin Rules & Validity ---
+            ConfigCard(
+              icon: Icons.monetization_on_rounded,
+              iconColor: Colors.amber.shade700,
+              title: 'Coin Rules & Validity',
+              description: 'Control coin lifespan and limits for booking redemptions.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Coin Validity / Expiry Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _coinExpiryDaysCtrl,
+                    hint: '60',
+                    prefix: 'Days',
+                    isDecimal: false,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Max Coin Redemption Per Booking', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ConfigNumberField(
+                    controller: _maxCoinRedemptionCtrl,
+                    hint: '40',
+                    prefix: '%',
+                    isDecimal: true,
                   ),
                 ],
               ),
