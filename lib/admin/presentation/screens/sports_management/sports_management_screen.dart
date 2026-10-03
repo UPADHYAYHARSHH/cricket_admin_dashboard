@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_page_scaffold.dart';
+import 'package:cricket_admin_panel/common/responsive/admin_breakpoints.dart';
+import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
+import 'package:cricket_admin_panel/common/widgets/shimmer_placeholder.dart';
 import 'package:cricket_admin_panel/common/constants/app_colors.dart';
-import 'package:cricket_admin_panel/admin/presentation/blocs/sports/sports_management_cubit.dart';
-import 'package:cricket_admin_panel/admin/presentation/blocs/sports/sports_management_state.dart';
 import 'package:cricket_admin_panel/admin/data/models/sport_model.dart';
+import '../../blocs/sports/sports_management_cubit.dart';
+import '../../blocs/sports/sports_management_state.dart';
+import 'widgets/sport_views.dart';
+import 'widgets/sport_form_dialog.dart';
 
+/// Catalogue of the sports offered in the apps.
+///
+/// Every cubit call keeps its original arguments. The add and edit forms are
+/// now one dialog with proper validation and controller disposal, the phone
+/// layout no longer overflows, and the existing but previously unreachable
+/// `updateSortOrder` is wired to inline reorder controls.
 class SportsManagementScreen extends StatefulWidget {
   const SportsManagementScreen({super.key});
 
@@ -13,450 +25,275 @@ class SportsManagementScreen extends StatefulWidget {
 }
 
 class _SportsManagementScreenState extends State<SportsManagementScreen> {
+  SportFilter _filter = SportFilter.all;
+
   @override
   void initState() {
     super.initState();
     context.read<SportsManagementCubit>().fetchSports();
   }
 
-  void _showAddSportDialog() {
-    final nameCtrl = TextEditingController();
-    final slugCtrl = TextEditingController();
-    final iconUrlCtrl = TextEditingController();
-    final localAssetCtrl = TextEditingController();
-    final colorCtrl = TextEditingController(text: '#1B5E20');
-    final sortOrderCtrl = TextEditingController(text: '0');
+  Future<void> _addSport() async {
+    final result = await SportFormDialog.show(context);
+    if (result == null || !mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Sport'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'e.g. Box Cricket',
-                ),
-                onChanged: (v) {
-                  slugCtrl.text = v
-                      .toLowerCase()
-                      .replaceAll(RegExp(r'[^a-z0-9]'), '_')
-                      .replaceAll(RegExp(r'_+'), '_');
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: slugCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Slug',
-                  hintText: 'e.g. box_cricket',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: iconUrlCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Icon URL (optional)',
-                  hintText: 'https://...',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: localAssetCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Local Asset (optional)',
-                  hintText: 'assets/images/sports/sport1.png',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: colorCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Color (hex)',
-                  hintText: '#1B5E20',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: sortOrderCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Sort Order',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (nameCtrl.text.trim().isEmpty) return;
-              context.read<SportsManagementCubit>().addSport(
-                    name: nameCtrl.text.trim(),
-                    slug: slugCtrl.text.trim(),
-                    iconUrl: iconUrlCtrl.text.trim(),
-                    localAsset: localAssetCtrl.text.trim(),
-                    color: colorCtrl.text.trim(),
-                    sortOrder: int.tryParse(sortOrderCtrl.text) ?? 0,
-                  );
-              Navigator.pop(ctx);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primaryDarkGreen,
-            ),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+    context.read<SportsManagementCubit>().addSport(
+          name: result.name,
+          slug: result.slug,
+          iconUrl: result.iconUrl,
+          localAsset: result.localAsset,
+          color: result.color,
+          sortOrder: result.sortOrder,
+        );
+  }
+
+  Future<void> _editSport(SportModel sport) async {
+    final result = await SportFormDialog.show(context, existing: sport);
+    if (result == null || !mounted) return;
+
+    context.read<SportsManagementCubit>().updateSport(
+          id: sport.id,
+          name: result.name,
+          slug: result.slug,
+          iconUrl: result.iconUrl,
+          localAsset: result.localAsset,
+          color: result.color,
+          sortOrder: result.sortOrder,
+        );
+  }
+
+  Future<void> _deleteSport(SportModel sport) async {
+    final confirmed = await confirmDeleteSport(context, sport);
+    if (!confirmed || !mounted) return;
+    context.read<SportsManagementCubit>().deleteSport(sport.id);
+  }
+
+  /// Swaps sort order with the neighbouring visible sport and persists both.
+  ///
+  /// `updateSortOrder` already existed in the cubit but nothing called it, so
+  /// ordering could only be changed by opening the edit dialog for each sport.
+  Future<void> _move(SportModel sport, List<SportModel> ordered, int delta) async {
+    final index = ordered.indexWhere((s) => s.id == sport.id);
+    final target = index + delta;
+    if (index < 0 || target < 0 || target >= ordered.length) return;
+
+    final other = ordered[target];
+    final cubit = context.read<SportsManagementCubit>();
+
+    // Write the lower value first so the two rows never share an order.
+    final firstIsSport = delta > 0;
+    await cubit.updateSortOrder(
+      firstIsSport ? sport.id : other.id,
+      firstIsSport ? other.sortOrder : sport.sortOrder,
+    );
+    if (!mounted) return;
+    await cubit.updateSortOrder(
+      firstIsSport ? other.id : sport.id,
+      firstIsSport ? sport.sortOrder : other.sortOrder,
     );
   }
 
-  void _showEditSportDialog(SportModel sport) {
-    final nameCtrl = TextEditingController(text: sport.name);
-    final slugCtrl = TextEditingController(text: sport.slug);
-    final iconUrlCtrl = TextEditingController(text: sport.iconUrl);
-    final localAssetCtrl = TextEditingController(text: sport.localAsset);
-    final colorCtrl = TextEditingController(text: sport.color);
-    final sortOrderCtrl = TextEditingController(text: sport.sortOrder.toString());
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Sport'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: slugCtrl,
-                decoration: const InputDecoration(labelText: 'Slug'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: iconUrlCtrl,
-                decoration: const InputDecoration(labelText: 'Icon URL (optional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: localAssetCtrl,
-                decoration: const InputDecoration(labelText: 'Local Asset (optional)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: colorCtrl,
-                decoration: const InputDecoration(labelText: 'Color (hex)'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: sortOrderCtrl,
-                decoration: const InputDecoration(labelText: 'Sort Order'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              context.read<SportsManagementCubit>().updateSport(
-                    id: sport.id,
-                    name: nameCtrl.text.trim(),
-                    slug: slugCtrl.text.trim(),
-                    iconUrl: iconUrlCtrl.text.trim(),
-                    localAsset: localAssetCtrl.text.trim(),
-                    color: colorCtrl.text.trim(),
-                    sortOrder: int.tryParse(sortOrderCtrl.text) ?? 0,
-                  );
-              Navigator.pop(ctx);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primaryDarkGreen,
-            ),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(SportModel sport) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Sport'),
-        content: Text('Are you sure you want to delete "${sport.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<SportsManagementCubit>().deleteSport(sport.id);
-              Navigator.pop(ctx);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+  Map<SportFilter, int> _counts(List<SportModel> sports) {
+    final counts = <SportFilter, int>{};
+    for (final filter in SportFilter.values) {
+      counts[filter] = 0;
+    }
+    for (final sport in sports) {
+      counts[SportFilter.all] = (counts[SportFilter.all] ?? 0) + 1;
+      counts[sport.isActive ? SportFilter.active : SportFilter.inactive] =
+          (counts[sport.isActive ? SportFilter.active : SportFilter.inactive] ??
+                  0) +
+              1;
+    }
+    return counts;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
-    final theme = Theme.of(context);
+    final cubit = context.read<SportsManagementCubit>();
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: isDesktop
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () =>
-                    context.findRootAncestorStateOfType<ScaffoldState>()?.openDrawer(),
-              ),
-        title: Text(
-          'Sports Management',
-          style: theme.textTheme.displayMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: FilledButton.icon(
-              onPressed: _showAddSportDialog,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add Sport'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primaryDarkGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+    return BlocBuilder<SportsManagementCubit, SportsManagementState>(
+      builder: (context, state) {
+        return AdminPageScaffold(
+          title: 'Sports',
+          subtitle: switch (state) {
+            SportsManagementLoaded(:final sports) =>
+              '${sports.length} sport${sports.length == 1 ? '' : 's'}',
+            SportsManagementLoading() => 'Loading…',
+            _ => 'Loading',
+          },
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: state is SportsManagementLoading
+                  ? null
+                  : () => cubit.fetchSports(),
+              icon: state is SportsManagementLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
             ),
-          ),
-        ],
-      ),
-      body: BlocBuilder<SportsManagementCubit, SportsManagementState>(
-        builder: (context, state) {
-          if (state is SportsManagementLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is SportsManagementError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                  const SizedBox(height: 16),
-                  Text(state.message),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () =>
-                        context.read<SportsManagementCubit>().fetchSports(),
-                    child: const Text('Retry'),
+            // The primary action collapses to an icon on a phone so it does
+            // not crowd the title.
+            if (AdminBreakpoints.isCompact(context))
+              IconButton(
+                tooltip: 'Add sport',
+                onPressed: _addSport,
+                icon: const Icon(Icons.add_rounded),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: FilledButton.icon(
+                  onPressed: _addSport,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add sport'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryDarkGreen,
+                    foregroundColor: Colors.white,
                   ),
-                ],
-              ),
-            );
-          }
-
-          if (state is SportsManagementLoaded) {
-            final sports = state.sports;
-            if (sports.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.sports, size: 48, color: Colors.grey.shade400),
-                    const SizedBox(height: 16),
-                    const Text('No sports found. Add your first sport!'),
-                  ],
                 ),
-              );
-            }
-
-            return isDesktop
-                ? _buildDataTable(sports, theme)
-                : _buildMobileList(sports, theme);
-          }
-
-          return const SizedBox();
-        },
-      ),
-    );
-  }
-
-  Widget _buildDataTable(List<SportModel> sports, ThemeData theme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Icon')),
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Slug')),
-            DataColumn(label: Text('Color')),
-            DataColumn(label: Text('Order')),
-            DataColumn(label: Text('Active')),
-            DataColumn(label: Text('Actions')),
+              ),
           ],
-          rows: sports.map((sport) {
-            final colorValue = int.tryParse(
-              sport.color.replaceFirst('#', '0xFF'),
-            );
-            return DataRow(cells: [
-              DataCell(
-                sport.iconUrl.isNotEmpty
-                    ? ClipOval(
-                        child: Image.network(
-                          sport.iconUrl,
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Icon(Icons.sports),
-                        ),
-                      )
-                    : Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: colorValue != null ? Color(colorValue) : Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.sports, color: Colors.white, size: 18),
-                      ),
-              ),
-              DataCell(Text(sport.name, style: const TextStyle(fontWeight: FontWeight.w600))),
-              DataCell(Text(sport.slug)),
-              DataCell(
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: colorValue != null ? Color(colorValue) : Colors.grey,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              DataCell(Text(sport.sortOrder.toString())),
-              DataCell(
-                Switch(
-                  value: sport.isActive,
-                  activeThumbColor: AppColors.primaryDarkGreen,
-                  onChanged: (val) {
-                    context.read<SportsManagementCubit>().toggleActive(sport.id, val);
-                  },
-                ),
-              ),
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_rounded, size: 20),
-                      onPressed: () => _showEditSportDialog(sport),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_rounded, size: 20, color: Colors.red.shade400),
-                      onPressed: () => _confirmDelete(sport),
-                    ),
-                  ],
-                ),
-              ),
-            ]);
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileList(List<SportModel> sports, ThemeData theme) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sports.length,
-      itemBuilder: (context, index) {
-        final sport = sports[index];
-        final colorValue = int.tryParse(
-          sport.color.replaceFirst('#', '0xFF'),
-        );
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(12),
-            leading: sport.iconUrl.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      sport.iconUrl,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Icon(Icons.sports),
-                    ),
-                  )
-                : Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colorValue != null ? Color(colorValue) : Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.sports, color: Colors.white, size: 22),
-                  ),
-            title: Text(sport.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(sport.slug),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(
-                  value: sport.isActive,
-                  activeThumbColor: AppColors.primaryDarkGreen,
-                  onChanged: (val) {
-                    context.read<SportsManagementCubit>().toggleActive(sport.id, val);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit_rounded, size: 20),
-                  onPressed: () => _showEditSportDialog(sport),
-                ),
-                IconButton(
-                  icon: Icon(Icons.delete_rounded, size: 20, color: Colors.red.shade400),
-                  onPressed: () => _confirmDelete(sport),
-                ),
-              ],
-            ),
+          child: _buildBody(
+            context,
+            state,
+            state is SportsManagementLoaded ? state.sports : null,
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    SportsManagementState state,
+    List<SportModel>? sports,
+  ) {
+    final cubit = context.read<SportsManagementCubit>();
+
+    if (state is SportsManagementError) {
+      return AdminStateView(
+        icon: Icons.cloud_off_rounded,
+        title: 'Could not load sports',
+        message: state.message,
+        actionLabel: 'Retry',
+        onAction: () => cubit.fetchSports(),
+        tone: AdminStateTone.error,
+      );
+    }
+
+    if (sports == null) {
+      return ShimmerPage(
+        children: [
+          const ShimmerTileGrid(
+            count: 3,
+            columnsAtExpanded: 3,
+            columnsAtMedium: 3,
+            columnsAtCompact: 1,
+          ),
+          const SizedBox(height: 14),
+          const ShimmerFilterBar(chips: 3),
+          const SizedBox(height: 14),
+          if (AdminBreakpoints.hasTableSpace(context))
+            const ShimmerSurface(child: ShimmerTable(rows: 6, columns: 4))
+          else
+            const ShimmerCardList(count: 4, lineCount: 2),
+        ],
+      );
+    }
+
+    if (sports.isEmpty) {
+      return AdminStateView(
+        icon: Icons.sports_cricket_outlined,
+        title: 'No sports yet',
+        message: 'Sports you add here become selectable in the booking apps.',
+        actionLabel: 'Add the first sport',
+        actionIcon: Icons.add_rounded,
+        onAction: _addSport,
+      );
+    }
+
+    // The cubit returns the list ordered by sort_order ascending.
+    final visible = sports
+        .where((sport) => switch (_filter) {
+              SportFilter.all => true,
+              SportFilter.active => sport.isActive,
+              SportFilter.inactive => !sport.isActive,
+            })
+        .toList();
+
+    final useTable = AdminBreakpoints.hasTableSpace(context);
+
+    return Column(
+      children: [
+        if (state is SportsManagementLoading)
+          const LinearProgressIndicator(minHeight: 2),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => cubit.fetchSports(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                SportSummary(sports: sports),
+                const SizedBox(height: 14),
+                SportFilterBar(
+                  filter: _filter,
+                  onChanged: (value) => setState(() => _filter = value),
+                  counts: _counts(sports),
+                  visibleCount: visible.length,
+                  totalCount: sports.length,
+                ),
+                const SizedBox(height: 14),
+                if (visible.isEmpty)
+                  AdminSurface(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: AdminStateView(
+                      icon: Icons.filter_alt_off_rounded,
+                      title: 'No sports in this view',
+                      message: 'Try a different filter.',
+                      actionLabel: 'Show all',
+                      onAction: () =>
+                          setState(() => _filter = SportFilter.all),
+                    ),
+                  )
+                else if (useTable)
+                  SportTable(
+                    sports: visible,
+                    onEdit: _editSport,
+                    onDelete: _deleteSport,
+                    onToggleActive: (sport, value) =>
+                        cubit.toggleActive(sport.id, value),
+                    onMoveUp: (sport) => _move(sport, sports, -1),
+                    onMoveDown: (sport) => _move(sport, sports, 1),
+                    isFirst: true,
+                    isLast: true,
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final sport in visible) ...[
+                        SportCard(
+                          key: ValueKey(sport.id),
+                          sport: sport,
+                          onEdit: () => _editSport(sport),
+                          onDelete: () => _deleteSport(sport),
+                          onToggleActive: (value) =>
+                              cubit.toggleActive(sport.id, value),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hugeicons/hugeicons.dart';
-import '../../../../common/constants/app_colors.dart';
+import '../../../../common/responsive/admin_breakpoints.dart';
+import 'admin_sidebar.dart';
 import '../../../di/get_it/get_it.dart';
 import '../../blocs/dashboard/admin_dashboard_cubit.dart';
 import '../../blocs/dashboard/admin_dashboard_state.dart';
@@ -95,228 +95,65 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    // Shared breakpoint instead of the previous hardcoded 800. The sidebar
+    // becomes permanent from tablet width upwards; below that it is a drawer.
+    final showPermanentSidebar =
+        AdminBreakpoints.of(context).isAtLeastMedium;
 
     return BlocProvider.value(
       value: _statsCubit,
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawer: isDesktop ? null : Drawer(child: _Sidebar(
-          selectedIndex: _selectedIndex,
-          onSelect: (index) {
-            setState(() => _selectedIndex = index);
-            if (MediaQuery.of(context).size.width < 800 && _scaffoldKey.currentState?.isDrawerOpen == true) {
-              Navigator.of(context).pop();
-            }
-          },
-          onLogout: _confirmLogout,
-        )),
-        body: Row(
-          children: [
-            if (isDesktop) ...[
-              _Sidebar(
-                selectedIndex: _selectedIndex,
-                onSelect: (index) => setState(() => _selectedIndex = index),
-                onLogout: _confirmLogout,
-              ),
-              const VerticalDivider(width: 1, thickness: 1),
-            ],
-            Expanded(
-              child: IndexedStack(
-                index: _selectedIndex,
-                children: _screens,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+      child: BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
+        // Only the badge count matters here, so rebuild only when that changes
+        // rather than on every dashboard state transition.
+        buildWhen: (previous, current) =>
+            _pendingApprovals(previous) != _pendingApprovals(current),
+        builder: (context, state) {
+          final pending = _pendingApprovals(state);
 
-class _Sidebar extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-  final VoidCallback onLogout;
-
-  const _Sidebar({
-    required this.selectedIndex,
-    required this.onSelect,
-    required this.onLogout,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 260,
-      color: Theme.of(context).colorScheme.surface,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 28),
-                    Text(
-                      'Admin Panel',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryDarkGreen,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
-                      builder: (context, state) {
-                        final owners = state is AdminDashboardLoaded ? state.ownersCount : null;
-                        final users = state is AdminDashboardLoaded ? state.usersCount : null;
-                        final revenue = state is AdminDashboardLoaded ? state.totalRevenue : null;
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryDarkGreen.withValues(alpha:0.06),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Column(
-                              children: [
-                                _SidebarStatRow(
-                                  icon: HugeIcons.strokeRoundedUserGroup,
-                                  label: 'Owners',
-                                  value: owners?.toString() ?? '—',
-                                ),
-                                const SizedBox(height: 10),
-                                _SidebarStatRow(
-                                  icon: HugeIcons.strokeRoundedUser,
-                                  label: 'Users',
-                                  value: users?.toString() ?? '—',
-                                ),
-                                const SizedBox(height: 10),
-                                _SidebarStatRow(
-                                  icon: HugeIcons.strokeRoundedMoneyBag01,
-                                  label: 'Revenue',
-                                  value: revenue != null ? '₹${revenue.toInt()}' : '—',
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+          return Scaffold(
+            key: _scaffoldKey,
+            drawer: showPermanentSidebar
+                ? null
+                : Drawer(
+                    child: AdminSidebar(
+                      isDrawer: true,
+                      pendingApprovals: pending,
+                      selectedIndex: _selectedIndex,
+                      onSelect: (index) {
+                        setState(() => _selectedIndex = index);
+                        if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+                          Navigator.of(context).pop();
+                        }
                       },
+                      onLogout: _confirmLogout,
                     ),
-                    const SizedBox(height: 24),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedHome01, label: 'Dashboard', index: 0),
-                    BlocBuilder<AdminDashboardCubit, AdminDashboardState>(
-                      builder: (context, state) {
-                        final pending = state is AdminDashboardLoaded ? state.pendingApprovalsCount : 0;
-                        return _buildNavItem(
-                          context,
-                          icon: HugeIcons.strokeRoundedLocationAdd01,
-                          label: 'Approvals',
-                          badge: pending > 0 ? pending : null,
-                          index: 1,
-                        );
-                      },
-                    ),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUserGroup, label: 'Owner Verification', index: 2),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedLocation01, label: 'Location Verification', index: 3),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedCricketBat, label: 'Sports', index: 4),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedUser, label: 'Users', index: 5),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedNotification03, label: 'Send Notification', index: 6),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedClock01, label: 'Notification History', index: 7),
-                    const Divider(indent: 16, endIndent: 16),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedSettings01, label: 'App Config', index: 8),
-                    _buildNavItem(context, icon: HugeIcons.strokeRoundedMoneyBag01, label: 'Payouts', index: 9),
-                    const SizedBox(height: 8),
-                  ],
+                  ),
+            body: Row(
+              children: [
+                if (showPermanentSidebar) ...[
+                  AdminSidebar(
+                    pendingApprovals: pending,
+                    selectedIndex: _selectedIndex,
+                    onSelect: (index) => setState(() => _selectedIndex = index),
+                    onLogout: _confirmLogout,
+                  ),
+                  const VerticalDivider(width: 1, thickness: 1),
+                ],
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: _screens,
+                  ),
                 ),
-              ),
+              ],
             ),
-            const Divider(height: 1),
-            InkWell(
-              onTap: onLogout,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Row(
-                  children: [
-                    HugeIcon(icon: HugeIcons.strokeRoundedLogout01, color: Colors.red.shade400),
-                    const SizedBox(width: 16),
-                    Text(
-                      'Log Out',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.red.shade400,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildNavItem(BuildContext context, {required dynamic icon, required String label, required int index, int? badge}) {
-    final isSelected = selectedIndex == index;
-    return InkWell(
-      onTap: () => onSelect(index),
-      child: Container(
-        color: isSelected ? AppColors.primaryDarkGreen.withValues(alpha:0.1) : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Row(
-          children: [
-            HugeIcon(
-              icon: icon,
-              color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.6),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? AppColors.primaryDarkGreen : Theme.of(context).colorScheme.onSurface.withValues(alpha:0.8),
-                    ),
-              ),
-            ),
-            if (badge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
-                child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-}
-
-class _SidebarStatRow extends StatelessWidget {
-  final dynamic icon;
-  final String label;
-  final String value;
-
-  const _SidebarStatRow({required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        HugeIcon(icon: icon, size: 16, color: AppColors.primaryDarkGreen),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDarkGreen)),
-      ],
-    );
-  }
+  /// Pending approval count for the sidebar badge, or zero when not loaded.
+  static int _pendingApprovals(AdminDashboardState state) =>
+      state is AdminDashboardLoaded ? state.pendingApprovalsCount : 0;
 }
