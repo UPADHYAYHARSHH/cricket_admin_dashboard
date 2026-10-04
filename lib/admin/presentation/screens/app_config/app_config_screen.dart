@@ -50,8 +50,8 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   final _userAndroidStoreUrlCtrl = TextEditingController();
   final _userIosStoreUrlCtrl = TextEditingController();
 
-  final _serviceAccountCtrl = TextEditingController();
-  final _firebaseTokenCtrl = TextEditingController();
+  String? _serviceAccountJson;
+  String? _firebaseToken;
 
   // Cancellation & Coin Recovery Policy
   final _tier1HoursCtrl = TextEditingController(text: '24');
@@ -66,7 +66,6 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
 
   bool _loading = true;
   bool _saving = false;
-  bool _publishing = false;
 
   @override
   void initState() {
@@ -88,8 +87,6 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     _userIosMinVersionCtrl.dispose();
     _userAndroidStoreUrlCtrl.dispose();
     _userIosStoreUrlCtrl.dispose();
-    _serviceAccountCtrl.dispose();
-    _firebaseTokenCtrl.dispose();
 
     _tier1HoursCtrl.dispose();
     _tier1PercentCtrl.dispose();
@@ -171,10 +168,10 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
             _userUnderMaintenance = val == 'true' || val == '1';
             break;
           case 'firebase_service_account':
-            _serviceAccountCtrl.text = val;
+            _serviceAccountJson = val;
             break;
           case 'firebase_token':
-            _firebaseTokenCtrl.text = val;
+            _firebaseToken = val;
             break;
           case 'cancellation_tier1_hours':
             _tier1HoursCtrl.text = val;
@@ -406,18 +403,6 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
               'key': 'user_app_maintenance',
               'value': _userUnderMaintenance.toString(),
             }, onConflict: 'key'),
-        client
-            .from('app_config')
-            .upsert({
-              'key': 'firebase_service_account',
-              'value': _serviceAccountCtrl.text.trim(),
-            }, onConflict: 'key'),
-        client
-            .from('app_config')
-            .upsert({
-              'key': 'firebase_token',
-              'value': _firebaseTokenCtrl.text.trim(),
-            }, onConflict: 'key'),
         client.from('app_config').upsert({
           'key': 'cancellation_tier1_hours',
           'value': _tier1HoursCtrl.text.trim().isEmpty ? '24' : _tier1HoursCtrl.text.trim(),
@@ -463,69 +448,22 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           convenienceFee: convenienceFee,
           gstRate: gstRate,
         ),
-        serviceAccountJsonString: _serviceAccountCtrl.text.trim(),
-        accessToken: _firebaseTokenCtrl.text.trim(),
+        serviceAccountJsonString: _serviceAccountJson,
+        accessToken: _firebaseToken,
       );
 
       if (mounted) {
-        _showSnack(syncResult.message, isError: !syncResult.success);
+        _showSnack(
+          syncResult.success
+              ? 'Configuration saved successfully.'
+              : syncResult.message,
+          isError: !syncResult.success,
+        );
       }
     } catch (e) {
       if (mounted) _showSnack('Failed to save: $e', isError: true);
     } finally {
       if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _publishToFirebase() async {
-    String stripNonNumeric(String s) => s.replaceAll(RegExp(r'[^0-9.]'), '');
-
-    final convClean = stripNonNumeric(_convenienceFeeCtrl.text);
-    final cClean = stripNonNumeric(_commissionRateCtrl.text);
-    final gstClean = stripNonNumeric(_gstRateCtrl.text);
-
-    final platformFee =
-        double.tryParse(convClean.isEmpty ? '20' : convClean) ?? 20.0;
-    final convenienceFee = platformFee;
-    final commissionRate = double.tryParse(cClean) ?? 0.0;
-    final gstRate = double.tryParse(gstClean.isEmpty ? '0' : gstClean) ?? 0.0;
-
-    setState(() => _publishing = true);
-    try {
-      final client = AdminSupabaseClient.client;
-      await Future.wait([
-        client
-            .from('app_config')
-            .upsert({
-              'key': 'firebase_service_account',
-              'value': _serviceAccountCtrl.text.trim(),
-            }, onConflict: 'key'),
-        client
-            .from('app_config')
-            .upsert({
-              'key': 'firebase_token',
-              'value': _firebaseTokenCtrl.text.trim(),
-            }, onConflict: 'key'),
-      ]);
-
-      final result = await FirebaseRemoteConfigSyncService.publishToFirebase(
-        parameters: _buildRemoteConfigParams(
-          platformFee: platformFee,
-          commissionRate: commissionRate,
-          convenienceFee: convenienceFee,
-          gstRate: gstRate,
-        ),
-        serviceAccountJsonString: _serviceAccountCtrl.text.trim(),
-        accessToken: _firebaseTokenCtrl.text.trim(),
-      );
-
-      if (mounted) {
-        _showSnack(result.message, isError: !result.success);
-      }
-    } catch (e) {
-      if (mounted) _showSnack('Publish Error: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _publishing = false);
     }
   }
 
@@ -540,7 +478,7 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
     );
   }
 
-  bool get _busy => _loading || _saving || _publishing;
+  bool get _busy => _loading || _saving;
 
   @override
   Widget build(BuildContext context) {
@@ -612,8 +550,6 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                   _sectionOwnerForceUpdate(context),
                   const SizedBox(height: 26),
                   _sectionUserForceUpdate(context),
-                  const SizedBox(height: 26),
-                  _sectionRemoteConfig(context),
                   const SizedBox(height: 20),
                   if (isCompact)
                     SizedBox(
@@ -1091,98 +1027,6 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _sectionRemoteConfig(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const ConfigSectionHeader(
-          title: 'Firebase Remote Config',
-          description:
-              'Publish all configuration parameters directly to Firebase '
-              'Remote Config to update the user and owner apps in real time.',
-        ),
-        AdminSurface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentOrange.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.cloud_sync_rounded,
-                      size: 20,
-                      color: AppColors.accentOrange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Project: box-cricket-df427',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Parameters synced: maintenance flags, required '
-                          'versions, store URLs, platform fee, commission and '
-                          'GST.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            height: 1.45,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ConfigTextField(
-                controller: _serviceAccountCtrl,
-                label: 'Firebase service account JSON',
-              ),
-              const SizedBox(height: 12),
-              ConfigTextField(
-                controller: _firebaseTokenCtrl,
-                label: 'Access token (optional)',
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _busy ? null : _publishToFirebase,
-                  icon: _publishing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.cloud_upload_rounded, size: 18),
-                  label: Text(
-                    _publishing ? 'Publishing…' : 'Publish to Firebase only',
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ],
     );
