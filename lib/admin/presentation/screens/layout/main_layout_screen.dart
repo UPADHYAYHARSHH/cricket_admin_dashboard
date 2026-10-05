@@ -20,6 +20,10 @@ import '../notification_management/notification_history_screen.dart';
 import '../payouts/admin_payout_screen.dart';
 import '../../blocs/sports/sports_management_cubit.dart';
 import '../../blocs/notification/admin_notification_cubit.dart';
+import '../user_management/user_management_screen.dart';
+import '../../blocs/users/user_management_cubit.dart';
+import '../bookings/booking_management_screen.dart';
+import '../../blocs/bookings/booking_management_cubit.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -86,11 +90,12 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         BlocProvider(create: (_) => getIt<OwnerManagementCubit>(), child: const OwnerManagementScreen()),
         BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),
         BlocProvider(create: (_) => getIt<SportsManagementCubit>(), child: const SportsManagementScreen()),
-        const Center(child: Text('Users')),
+        BlocProvider(create: (_) => getIt<UserManagementCubit>(), child: const UserManagementScreen()),
         BlocProvider(create: (_) => getIt<AdminNotificationCubit>(), child: const NotificationSendScreen()),
         BlocProvider(create: (_) => getIt<AdminNotificationCubit>()..fetchNotifications(), child: const NotificationHistoryScreen()),
         const AppConfigScreen(),
         const AdminPayoutScreen(),
+        BlocProvider(create: (_) => getIt<BookingManagementCubit>(), child: const BookingManagementScreen()),
       ];
 
   @override

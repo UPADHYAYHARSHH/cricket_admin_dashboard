@@ -62,6 +62,7 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
   final _tier3PercentCtrl = TextEditingController(text: '50');
   final _tier4PercentCtrl = TextEditingController(text: '25');
   final _coinExpiryDaysCtrl = TextEditingController(text: '60');
+  bool _coinsExpiryEnabled = true;
   final _maxCoinRedemptionCtrl = TextEditingController(text: '40');
 
   bool _loading = true;
@@ -197,6 +198,9 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
           case 'coin_expiry_days':
             _coinExpiryDaysCtrl.text = val;
             break;
+          case 'coins_expiry_enabled':
+            _coinsExpiryEnabled = val == 'true' || val == '1';
+            break;
           case 'max_coin_redemption_percent':
             _maxCoinRedemptionCtrl.text = val;
             break;
@@ -254,6 +258,7 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
       'cancellation_tier3_percent': _tier3PercentCtrl.text.trim().isEmpty ? '50' : _tier3PercentCtrl.text.trim(),
       'cancellation_tier4_percent': _tier4PercentCtrl.text.trim().isEmpty ? '25' : _tier4PercentCtrl.text.trim(),
       'coin_expiry_days': _coinExpiryDaysCtrl.text.trim().isEmpty ? '60' : _coinExpiryDaysCtrl.text.trim(),
+      'coins_expiry_enabled': _coinsExpiryEnabled.toString(),
       'max_coin_redemption_percent': _maxCoinRedemptionCtrl.text.trim().isEmpty ? '40' : _maxCoinRedemptionCtrl.text.trim(),
     };
   }
@@ -434,6 +439,10 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
         client.from('app_config').upsert({
           'key': 'coin_expiry_days',
           'value': _coinExpiryDaysCtrl.text.trim().isEmpty ? '60' : _coinExpiryDaysCtrl.text.trim(),
+        }, onConflict: 'key'),
+        client.from('app_config').upsert({
+          'key': 'coins_expiry_enabled',
+          'value': _coinsExpiryEnabled.toString(),
         }, onConflict: 'key'),
         client.from('app_config').upsert({
           'key': 'max_coin_redemption_percent',
@@ -834,6 +843,14 @@ class _AppConfigScreenState extends State<AppConfigScreen> {
                     hint: '60',
                     prefix: 'Days',
                     isDecimal: false,
+                  ),
+                  const SizedBox(height: 10),
+                  SwitchListTile(
+                    value: _coinsExpiryEnabled,
+                    onChanged: (v) => setState(() => _coinsExpiryEnabled = v),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text('Enable Coin Expiry'),
                   ),
                   const SizedBox(height: 12),
                   const Text('Max Coin Redemption Per Booking', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),

@@ -50,6 +50,7 @@ const List<AdminNavGroup> adminNavGroups = [
         index: 3, label: 'Location verification', icon: Icons.location_on_rounded),
     AdminNavItem(index: 4, label: 'Sports', icon: Icons.sports_cricket_rounded),
     AdminNavItem(index: 5, label: 'Users', icon: Icons.people_alt_rounded),
+    AdminNavItem(index: 10, label: 'Bookings', icon: Icons.calendar_month_rounded),
     AdminNavItem(
         index: 9, label: 'Payouts', icon: Icons.payments_rounded),
   ]),
