@@ -15,6 +15,7 @@ import 'package:cricket_admin_panel/admin/presentation/blocs/owners/owner_manage
 import 'package:cricket_admin_panel/admin/presentation/blocs/sports/sports_management_cubit.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/users/user_management_cubit.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/bookings/booking_management_cubit.dart';
+import 'package:cricket_admin_panel/admin/presentation/blocs/reviews/reviews_management_cubit.dart';
 import 'package:cricket_admin_panel/admin/data/repositories/admin_notification_repository_impl.dart';
 import 'package:cricket_admin_panel/admin/domain/repositories/admin_notification_repository.dart';
 import 'package:cricket_admin_panel/admin/presentation/blocs/notification/admin_notification_cubit.dart';
@@ -73,6 +74,9 @@ void initAdminDi() {
   );
   getIt.registerFactory<BookingManagementCubit>(
     () => BookingManagementCubit(getIt<SupabaseClient>()),
+  );
+  getIt.registerFactory<ReviewsManagementCubit>(
+    () => ReviewsManagementCubit(getIt<SupabaseClient>()),
   );
 
   getIt.registerLazySingleton<AdminNotificationRepository>(

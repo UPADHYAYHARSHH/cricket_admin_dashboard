@@ -42,6 +42,7 @@ const List<AdminNavGroup> adminNavGroups = [
   ]),
   AdminNavGroup('Review queue', [
     AdminNavItem(index: 1, label: 'Approvals', icon: Icons.pending_actions_rounded),
+    AdminNavItem(index: 11, label: 'Reviews', icon: Icons.rate_review_rounded),
   ]),
   AdminNavGroup('Marketplace', [
     AdminNavItem(

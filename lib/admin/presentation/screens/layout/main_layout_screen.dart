@@ -24,6 +24,8 @@ import '../user_management/user_management_screen.dart';
 import '../../blocs/users/user_management_cubit.dart';
 import '../bookings/booking_management_screen.dart';
 import '../../blocs/bookings/booking_management_cubit.dart';
+import '../reviews_management/reviews_management_screen.dart';
+import '../../blocs/reviews/reviews_management_cubit.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -96,6 +98,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         const AppConfigScreen(),
         const AdminPayoutScreen(),
         BlocProvider(create: (_) => getIt<BookingManagementCubit>(), child: const BookingManagementScreen()),
+        BlocProvider(create: (_) => getIt<ReviewsManagementCubit>(), child: const ReviewsManagementScreen()),
       ];
 
   @override
