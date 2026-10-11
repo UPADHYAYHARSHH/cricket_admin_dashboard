@@ -126,7 +126,7 @@ class _ReviewsManagementScreenState extends State<ReviewsManagementScreen> {
                     width: 230,
                     height: 160,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       width: 230,
                       height: 160,
                       color: Colors.grey.shade200,
