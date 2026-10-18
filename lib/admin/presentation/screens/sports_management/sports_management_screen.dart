@@ -10,6 +10,7 @@ import '../../blocs/sports/sports_management_cubit.dart';
 import '../../blocs/sports/sports_management_state.dart';
 import 'widgets/sport_views.dart';
 import 'widgets/sport_form_dialog.dart';
+import 'package:cricket_admin_panel/admin/presentation/widgets/charts/sport_category_chart.dart';
 
 /// Catalogue of the sports offered in the apps.
 ///
@@ -239,8 +240,21 @@ class _SportsManagementScreenState extends State<SportsManagementScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 24),
               children: [
-                SportSummary(sports: sports),
-                const SizedBox(height: 14),
+                SportSummary(
+                  sports: sports,
+                  sportsAnalytics: state is SportsManagementLoaded ? state.sportsAnalytics : const [],
+                  totalBookings: state is SportsManagementLoaded ? state.totalBookings : 0,
+                  totalRevenue: state is SportsManagementLoaded ? state.totalRevenue : 0.0,
+                ),
+                const SizedBox(height: 16),
+                if (state is SportsManagementLoaded && state.sportsAnalytics.isNotEmpty) ...[
+                  SportCategoryChartCard(
+                    sports: state.sportsAnalytics,
+                    title: 'Sport Category Bookings',
+                    subtitle: 'Share of total bookings and revenue by sport',
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 SportFilterBar(
                   filter: _filter,
                   onChanged: (value) => setState(() => _filter = value),
@@ -264,6 +278,7 @@ class _SportsManagementScreenState extends State<SportsManagementScreen> {
                 else if (useTable)
                   SportTable(
                     sports: visible,
+                    analytics: state is SportsManagementLoaded ? state.sportsAnalytics : const [],
                     onEdit: _editSport,
                     onDelete: _deleteSport,
                     onToggleActive: (sport, value) =>
@@ -280,6 +295,7 @@ class _SportsManagementScreenState extends State<SportsManagementScreen> {
                         SportCard(
                           key: ValueKey(sport.id),
                           sport: sport,
+                          analytics: state is SportsManagementLoaded ? state.analyticsFor(sport) : null,
                           onEdit: () => _editSport(sport),
                           onDelete: () => _deleteSport(sport),
                           onToggleActive: (value) =>

@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:cricket_admin_panel/common/responsive/admin_page_scaffold.dart';
 import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
 import 'package:cricket_admin_panel/common/widgets/shimmer_placeholder.dart';
+import 'package:cricket_admin_panel/common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/admin/domain/analytics.dart';
 import '../../blocs/bookings/booking_management_cubit.dart';
 import '../../blocs/bookings/booking_management_state.dart';
 
@@ -18,6 +20,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   String? _selectedStatus; // null means 'ALL'
+  String? _selectedSport; // null means 'ALL SPORTS'
   int _currentPage = 1;
   static const int _pageSize = 10;
 
@@ -49,12 +52,33 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
     });
   }
 
-  bool _matchesQueryAndStatus(Map<String, dynamic> booking, String query, String? statusFilter) {
+  void _setSportFilter(String? sport) {
+    if (_selectedSport == sport) return;
+    setState(() {
+      _selectedSport = sport;
+      _currentPage = 1; // reset page on filter change
+    });
+  }
+
+  bool _matchesQueryAndStatus(
+    Map<String, dynamic> booking,
+    String query,
+    String? statusFilter,
+    String? sportFilter,
+  ) {
     final status = (booking['status'] ?? '').toString().toLowerCase();
 
     // Check status filter
     if (statusFilter != null && statusFilter.isNotEmpty) {
       if (status != statusFilter.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // Check sport filter
+    if (sportFilter != null && sportFilter.isNotEmpty) {
+      final s = sportOf(booking).toLowerCase();
+      if (s != sportFilter.toLowerCase()) {
         return false;
       }
     }
@@ -71,9 +95,11 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
     final userPhone = (user?['phone'] ?? '').toString().toLowerCase();
     final ground = booking['grounds'] as Map<String, dynamic>?;
     final groundName = (ground?['name'] ?? '').toString().toLowerCase();
+    final sportName = sportOf(booking).toLowerCase();
 
     return displayId.contains(needle) ||
         status.contains(needle) ||
+        sportName.contains(needle) ||
         userName.contains(needle) ||
         userUsername.contains(needle) ||
         userEmail.contains(needle) ||
@@ -534,9 +560,21 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
       {'key': 'expired', 'label': 'Expired', 'count': statusCounts['expired'] ?? 0, 'color': Colors.blueGrey},
     ];
 
+    final sportsCounts = <String, int>{};
+    for (final b in bookings) {
+      final s = sportOf(b);
+      sportsCounts[s] = (sportsCounts[s] ?? 0) + 1;
+    }
+
+    final sportFilterOptions = [
+      {'key': null, 'label': 'All Sports', 'count': bookings.length},
+      for (final entry in sportsCounts.entries)
+        {'key': entry.key, 'label': entry.key, 'count': entry.value},
+    ];
+
     // Filter results
     final filtered = bookings
-        .where((b) => _matchesQueryAndStatus(b, _query, _selectedStatus))
+        .where((b) => _matchesQueryAndStatus(b, _query, _selectedStatus, _selectedSport))
         .toList();
 
     // Pagination calculations
@@ -576,9 +614,9 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
           ),
         ),
 
-        // --- Filter Chips ---
+        // --- Status Filter Chips ---
         Padding(
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.only(bottom: 10),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -649,6 +687,85 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
           ),
         ),
 
+        // --- Sport Category Filter Chips ---
+        if (sportsCounts.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: sportFilterOptions.map((filter) {
+                  final key = filter['key'] as String?;
+                  final label = filter['label'] as String;
+                  final count = filter['count'] as int;
+                  final isSelected = _selectedSport == key;
+                  const color = AppColors.primaryDarkGreen;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: const VisualDensity(horizontal: -2, vertical: -3),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.sports_cricket_rounded,
+                            size: 13,
+                            color: isSelected ? Colors.white : color,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.2,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected ? Colors.white : color,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white.withValues(alpha: 0.25)
+                                  : color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                height: 1.1,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      selected: isSelected,
+                      selectedColor: color,
+                      backgroundColor: color.withValues(alpha: 0.08),
+                      checkmarkColor: Colors.white,
+                      showCheckmark: false,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: isSelected ? color : color.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      onSelected: (_) => _setSportFilter(key),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+
         // --- Table or Empty View ---
         if (filtered.isEmpty)
           Expanded(
@@ -669,6 +786,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
                       setState(() {
                         _query = '';
                         _selectedStatus = null;
+                        _selectedSport = null;
                         _currentPage = 1;
                       });
                     },
@@ -699,6 +817,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
                             DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('Ground', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('Sport', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('Slot', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -756,6 +875,23 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
                                   ),
                                 ),
                                 DataCell(Text(groundName)),
+                                DataCell(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryDarkGreen.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      sportOf(b),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primaryDarkGreen,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 DataCell(Text(_formatSlot(b))),
                                 DataCell(
                                   Text(

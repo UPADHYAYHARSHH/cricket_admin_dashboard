@@ -86,8 +86,20 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     });
   }
 
+  void _openSports() {
+    setState(() {
+      _selectedIndex = 4;
+    });
+  }
+
   List<Widget> get _screens => [
-        BlocProvider.value(value: _statsCubit, child: DashboardScreen(onOpenApprovals: _openApprovals)),
+        BlocProvider.value(
+          value: _statsCubit,
+          child: DashboardScreen(
+            onOpenApprovals: _openApprovals,
+            onOpenSports: _openSports,
+          ),
+        ),
         BlocProvider(create: (_) => getIt<ApprovalsCubit>(), child: const ApprovalsScreen()),
         BlocProvider(create: (_) => getIt<OwnerManagementCubit>(), child: const OwnerManagementScreen()),
         BlocProvider(create: (_) => getIt<LocationManagementCubit>(), child: const LocationManagementScreen()),

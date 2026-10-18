@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
 import 'package:cricket_admin_panel/common/widgets/admin_status_pill.dart';
 import 'package:cricket_admin_panel/common/constants/app_colors.dart';
+import 'package:cricket_admin_panel/common/utils/formatters.dart';
 import 'package:cricket_admin_panel/admin/data/models/sport_model.dart';
+import 'package:cricket_admin_panel/admin/domain/analytics.dart';
 
 /// Parses a `#RGB` / `#RRGGBB` / `AARRGGBB` hex string, tolerating a missing
 /// leading `#` and a short three-digit form.
@@ -125,25 +127,40 @@ enum SportFilter {
 
 /// Counters for the sport list.
 class SportSummary extends StatelessWidget {
-  const SportSummary({super.key, required this.sports});
+  const SportSummary({
+    super.key,
+    required this.sports,
+    this.sportsAnalytics = const [],
+    this.totalBookings = 0,
+    this.totalRevenue = 0.0,
+  });
 
   final List<SportModel> sports;
+  final List<SportAnalytics> sportsAnalytics;
+  final int totalBookings;
+  final double totalRevenue;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final active = sports.where((s) => s.isActive).length;
-    final missingIcon = sports.where((s) => s.iconUrl.isEmpty).length;
+    final topSport = sportsAnalytics.isNotEmpty && sportsAnalytics.first.totalBookings > 0
+        ? sportsAnalytics.first
+        : null;
 
     final tiles = <_Tile>[
-      _Tile('Total sports', '${sports.length}', Icons.sports_cricket_rounded,
+      _Tile('Total sports', '${sports.length} ($active active)', Icons.sports_cricket_rounded,
           AppColors.primaryDarkGreen),
-      _Tile('Visible in app', '$active', Icons.visibility_outlined,
+      _Tile('Total bookings', '$totalBookings', Icons.calendar_month_rounded,
           AppColors.primaryLightGreen),
-      _Tile('Hidden', '${sports.length - active}', Icons.visibility_off_outlined,
-          Theme.of(context).colorScheme.onSurfaceVariant),
-      _Tile('Without an icon', '$missingIcon', Icons.image_not_supported_outlined,
-          Theme.of(context).colorScheme.onSurfaceVariant),
+      _Tile(
+        'Top booked sport',
+        topSport != null ? '${topSport.name} (${topSport.totalBookings})' : 'None yet',
+        Icons.emoji_events_rounded,
+        AppColors.accentOrange,
+      ),
+      _Tile('Sports revenue', '₹${formatInr(totalRevenue.round())}', Icons.payments_rounded,
+          AppColors.goldenYellow),
     ];
 
     return LayoutBuilder(
@@ -333,6 +350,7 @@ class SportTable extends StatelessWidget {
   const SportTable({
     super.key,
     required this.sports,
+    this.analytics = const [],
     required this.onEdit,
     required this.onDelete,
     required this.onToggleActive,
@@ -343,6 +361,7 @@ class SportTable extends StatelessWidget {
   });
 
   final List<SportModel> sports;
+  final List<SportAnalytics> analytics;
   final ValueChanged<SportModel> onEdit;
   final ValueChanged<SportModel> onDelete;
   final void Function(SportModel sport, bool value) onToggleActive;
@@ -350,6 +369,22 @@ class SportTable extends StatelessWidget {
   final ValueChanged<SportModel> onMoveDown;
   final bool isFirst;
   final bool isLast;
+
+  SportAnalytics _statFor(SportModel sport) {
+    return analytics.firstWhere(
+      (a) =>
+          a.id == sport.id ||
+          a.slug.toLowerCase() == sport.slug.toLowerCase() ||
+          a.name.toLowerCase() == sport.name.toLowerCase(),
+      orElse: () => SportAnalytics(
+        id: sport.id,
+        name: sport.name,
+        slug: sport.slug,
+        totalBookings: 0,
+        revenue: 0,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -380,6 +415,7 @@ class SportTable extends StatelessWidget {
             DataColumn(label: Text('NAME')),
             DataColumn(label: Text('SLUG')),
             DataColumn(label: Text('COLOUR')),
+            DataColumn(label: Text('BOOKINGS')),
             DataColumn(label: Text('VISIBLE')),
             DataColumn(label: Text('ACTIONS')),
           ],
@@ -463,6 +499,65 @@ class SportTable extends StatelessWidget {
                   ),
                   DataCell(SportColorSwatch(hex: sport.color)),
                   DataCell(
+                    Builder(
+                      builder: (context) {
+                        final stat = _statFor(sport);
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (stat.totalBookings > 0
+                                            ? AppColors.primaryDarkGreen
+                                            : theme.colorScheme.onSurfaceVariant)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${stat.totalBookings} booking${stat.totalBookings == 1 ? '' : 's'}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: stat.totalBookings > 0
+                                          ? AppColors.primaryDarkGreen
+                                          : theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                if (stat.percentage > 0) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${stat.percentage.toStringAsFixed(1)}%',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontSize: 10,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            if (stat.revenue > 0) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '₹${formatInr(stat.revenue.round())}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.goldenYellow,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  DataCell(
                     Switch(
                       value: sport.isActive,
                       onChanged: (value) => onToggleActive(sport, value),
@@ -535,12 +630,14 @@ class SportCard extends StatelessWidget {
   const SportCard({
     super.key,
     required this.sport,
+    this.analytics,
     required this.onEdit,
     required this.onDelete,
     required this.onToggleActive,
   });
 
   final SportModel sport;
+  final SportAnalytics? analytics;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final void Function(bool value) onToggleActive;
@@ -548,6 +645,8 @@ class SportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bookingsCount = analytics?.totalBookings ?? 0;
+    final rev = analytics?.revenue ?? 0.0;
 
     return AdminSurface(
       padding: const EdgeInsets.all(14),
@@ -563,13 +662,40 @@ class SportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      sport.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            sport.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        // Bookings badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: (bookingsCount > 0
+                                    ? AppColors.primaryLightGreen
+                                    : theme.colorScheme.onSurfaceVariant)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '$bookingsCount booking${bookingsCount == 1 ? '' : 's'}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: bookingsCount > 0
+                                  ? AppColors.primaryLightGreen
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -592,6 +718,16 @@ class SportCard extends StatelessWidget {
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
+                        if (rev > 0) ...[
+                          const Spacer(),
+                          Text(
+                            '₹${formatInr(rev.round())}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.goldenYellow,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

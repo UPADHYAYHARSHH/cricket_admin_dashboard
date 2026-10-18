@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cricket_admin_panel/admin/data/models/sport_model.dart';
+import 'package:cricket_admin_panel/admin/domain/analytics.dart';
 import 'sports_management_state.dart';
 
 class SportsManagementCubit extends Cubit<SportsManagementState> {
@@ -21,7 +22,34 @@ class SportsManagementCubit extends Cubit<SportsManagementState> {
           .map((e) => SportModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      emit(SportsManagementLoaded(sports));
+      // Fetch bookings to compute category booking stats
+      List<Map<String, dynamic>> bookings = [];
+      try {
+        final bResponse = await _supabase.from('bookings').select('''
+          id, amount, total_amount, status, sport_name,
+          grounds ( name, category )
+        ''');
+        bookings = List<Map<String, dynamic>>.from(bResponse);
+      } catch (err) {
+        debugPrint('[SportsManagementCubit] Notice: bookings fetch: $err');
+      }
+
+      final analytics = computeSportAnalytics(bookings, knownSports: sports);
+      final byId = <String, SportAnalytics>{};
+      for (final a in analytics) {
+        byId[a.id] = a;
+      }
+
+      final totalBookings = bookings.length;
+      final totalRev = totalRevenue(bookings);
+
+      emit(SportsManagementLoaded(
+        sports,
+        sportsAnalytics: analytics,
+        analyticsBySportId: byId,
+        totalBookings: totalBookings,
+        totalRevenue: totalRev,
+      ));
     } catch (e) {
       debugPrint('[SportsManagementCubit] Error fetching sports: $e');
       emit(SportsManagementError(e.toString()));

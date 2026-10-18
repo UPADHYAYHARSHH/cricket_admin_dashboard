@@ -143,7 +143,7 @@ class _OwnerDesktopTableState extends State<OwnerDesktopTable> {
                     ),
                     DataCell(
                       Text(
-                        'â‚¹${formatInr(summary.revenue.round())}',
+                        '₹${formatInr(summary.revenue.round())}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: AppColors.primaryDarkGreen,

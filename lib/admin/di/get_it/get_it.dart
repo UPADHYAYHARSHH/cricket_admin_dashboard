@@ -49,6 +49,7 @@ void initAdminDi() {
       getIt<AdminGroundRepository>(),
       getIt<AdminOwnerRepository>(),
       getIt<AdminBookingRepository>(),
+      getIt<SupabaseClient>(),
     ),
   );
   getIt.registerFactory<LocationManagementCubit>(

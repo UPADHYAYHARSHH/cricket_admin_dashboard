@@ -14,7 +14,7 @@ class BookingManagementCubit extends Cubit<BookingManagementState> {
       // 1. Fetch bookings with grounds and locations (FK exists for grounds)
       final response = await _supabase.from('bookings').select('''
         *,
-        grounds ( name, locations ( name ) )
+        grounds ( name, category, locations ( name ) )
       ''').order('created_at', ascending: false);
 
       final rawBookings = List<Map<String, dynamic>>.from(response);

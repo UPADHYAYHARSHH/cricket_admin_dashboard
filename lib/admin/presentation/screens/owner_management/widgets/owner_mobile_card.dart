@@ -86,7 +86,7 @@ class OwnerMobileCard extends StatelessWidget {
                 _MiniStat(
                   icon: Icons.payments_rounded,
                   label: 'Revenue',
-                  value: 'â‚¹${formatInr(summary.revenue.round())}',
+                  value: '₹${formatInr(summary.revenue.round())}',
                   valueColor: AppColors.primaryDarkGreen,
                 ),
               ],

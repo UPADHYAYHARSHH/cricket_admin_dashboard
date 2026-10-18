@@ -103,7 +103,7 @@ class OwnerKpiStrip extends StatelessWidget {
       ),
       _Kpi(
         label: 'Total revenue',
-        value: 'â‚¹${formatInr(revenue.round())}',
+        value: '₹${formatInr(revenue.round())}',
         icon: Icons.payments_rounded,
         color: AppColors.goldenYellow,
       ),

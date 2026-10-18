@@ -8,6 +8,8 @@
 /// every platform and need no initialisation.
 library;
 
+import 'dart:ui';
+
 /// Formats an integer amount with Indian digit grouping (1,00,000).
 ///
 /// The app is INR-only, so no currency argument is needed.
@@ -99,4 +101,17 @@ String formatRelative(Object? value) {
   if (diff.inDays < 7) return '${diff.inDays}d ago';
   if (diff.inDays < 365) return '${diff.inDays ~/ 7}w ago';
   return '${diff.inDays ~/ 365}y ago';
+}
+
+/// Parses a `#RGB` / `#RRGGBB` / `AARRGGBB` hex string into a Color.
+Color? parseHexColor(String? hex) {
+  if (hex == null) return null;
+  var value = hex.trim().replaceFirst('#', '');
+  if (value.length == 3) {
+    value = value.split('').map((c) => '$c$c').join();
+  }
+  if (value.length == 6) value = 'FF$value';
+  if (value.length != 8) return null;
+  final parsed = int.tryParse(value, radix: 16);
+  return parsed == null ? null : Color(parsed);
 }

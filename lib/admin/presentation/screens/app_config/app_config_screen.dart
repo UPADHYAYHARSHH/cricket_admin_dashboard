@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cricket_admin_panel/common/responsive/admin_page_scaffold.dart';
 import 'package:cricket_admin_panel/common/responsive/admin_breakpoints.dart';
-import 'package:cricket_admin_panel/common/widgets/admin_state_view.dart';
 import 'package:cricket_admin_panel/common/widgets/shimmer_placeholder.dart';
 import 'package:cricket_admin_panel/common/constants/app_colors.dart';
 import 'package:cricket_admin_panel/common/services/admin_supabase_client.dart';
